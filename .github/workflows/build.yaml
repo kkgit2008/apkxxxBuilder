@@ -1,4 +1,4 @@
-name: android_build001
+name: apk_build001
 
 on:
   workflow_dispatch:
