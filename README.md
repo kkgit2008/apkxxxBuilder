@@ -1,7 +1,7 @@
 # Android Builder
 
 使用方法： 
-1 将 project-to-build 内容更改为你的项目地址（如 https://github.com/kkgit2008/apk_builder）
+1 将 project-to-build 内容更改为待打包的项目地址（如 https://github.com/kkgit2008/TVBoxOS）
 2 依次点击 Actions - All workflows - apk_build001 - run workflow - run
 3 刷新页面，然后等待黄点变成绿点
 4 变绿后刷新页面，apk文件在页面右下角
