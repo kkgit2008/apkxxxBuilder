@@ -8,6 +8,12 @@
 
 
 
+QA:
+如果编译出错，可以尝试修改“.github/workflows/build.yaml”中的所有版本号，如“uses: actions/checkout@v2”. 
+
+
+
+
 其他说明：
 
 该仓库是使用 Github Action 自动编译 Android 项目的一种展示。具体解释可见下面的文章：
