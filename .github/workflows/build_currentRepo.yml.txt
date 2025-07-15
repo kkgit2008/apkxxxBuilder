@@ -33,21 +33,30 @@ jobs:
 
       - name: Cache Gradle
         uses: actions/cache@v3
+        working-directory: ${{ env.ANDROID_DIR }}
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', '**/build.gradle') }}
 
-      - name: Build Debug
-        id: build
+#      - name: Increase Gradle memory
+#        working-directory: ${{ env.ANDROID_DIR }}
+#        run: |
+#          printf "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g\n" >> gradle.properties
+
+      - name: Make gradlew executable
         working-directory: ${{ env.ANDROID_DIR }}
         run: |
           if [ ! -f "gradlew" ]; then gradle wrapper; fi
           chmod +x gradlew
-          ./gradlew assembleDebug
+
+      - name: Build Debug
+        working-directory: ${{ env.ANDROID_DIR }}
+        run: ./gradlew assembleDebug
 
       - name: Build Release
+        working-directory: ${{ env.ANDROID_DIR }}
         run: ./gradlew assembleRelease
 
       - name: Generate SHA256 checksums
