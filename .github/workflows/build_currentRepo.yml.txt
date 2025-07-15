@@ -39,13 +39,16 @@ jobs:
             ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', '**/build.gradle') }}
 
-      - name: Build APKs
+      - name: Build Debug
         id: build
         working-directory: ${{ env.ANDROID_DIR }}
         run: |
           if [ ! -f "gradlew" ]; then gradle wrapper; fi
           chmod +x gradlew
-          ./gradlew assembleDebug assembleRelease
+          ./gradlew assembleDebug
+
+      - name: Build Release
+        run: ./gradlew assembleRelease
 
       - name: Generate SHA256 checksums
         working-directory: ${{ env.ANDROID_DIR }}
