@@ -5,8 +5,15 @@ name: Android Build with SHA256
 on:
   push:
     #branches: [ "main","master","dev","release" ]
-#指定某分支文件改变时，才开始构建
+    #指定某分支文件改变时，才开始构建
   workflow_dispatch:
+  #支持手动触发，无输入参数
+
+env:
+  ANDROID_DIR: .
+  #在项目根目录下构建(app目录位于项目根目录下）。
+  #ANDROID_DIR: android
+  #android为子目录路径，需修改为您需要的路径。
 
 permissions:
   contents: write
@@ -34,16 +41,14 @@ jobs:
 
       - name: Build APKs
         id: build
-        working-directory: android
-#android为子目录路径，需修改为您需要的路径。只需注释掉，即可在根目录构建
+        working-directory: ${{ env.ANDROID_DIR }}
         run: |
           if [ ! -f "gradlew" ]; then gradle wrapper; fi
           chmod +x gradlew
           ./gradlew assembleDebug assembleRelease
 
       - name: Generate SHA256 checksums
-        working-directory: android
-#android为子目录路径，需修改为您需要的路径。只需注释掉，即可在根目录构建
+        working-directory: ${{ env.ANDROID_DIR }}
         run: |
           find . -name '*.apk' | while read apk; do
             sha256sum "$apk" > "${apk}.sha256"
@@ -54,12 +59,7 @@ jobs:
         with:
           name: myapk
           path: |
-            #app/build/outputs/apk/debug/*.apk
-            #app/build/outputs/apk/debug/*.sha256
-            #app/build/outputs/apk/release/*.apk
-            #app/build/outputs/apk/release/*.sha256
-            #android为子目录路径，需修改为您需要的路径。只需注释掉，即可在根目录构建
-            android/app/build/outputs/apk/debug/*.apk
-            android/app/build/outputs/apk/debug/*.sha256
-            android/app/build/outputs/apk/release/*.apk
-            android/app/build/outputs/apk/release/*.sha256
+            ${{ env.ANDROID_DIR }}/app/build/outputs/apk/debug/*.apk
+            ${{ env.ANDROID_DIR }}/app/build/outputs/apk/debug/*.sha256
+            ${{ env.ANDROID_DIR }}/app/build/outputs/apk/release/*.apk
+            ${{ env.ANDROID_DIR }}/app/build/outputs/apk/release/*.sha256
