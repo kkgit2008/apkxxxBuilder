@@ -1,5 +1,6 @@
 
-# 🔥🔥🔥新版，新增以下功能:
+# 🔥🔥🔥新版
+# 🔥🔥新增以下功能:
 
 * 🔥1.通用型yml文件，支持在当前仓库构建apk，也可选择在仓库的子目录中构建 <a href=".github/workflows/build_currentRepo.yml.txt">file</a>
 
