@@ -16,13 +16,15 @@ QA:
 如果编译出错，可以尝试修改“.github/workflows/build.yaml”中的所有版本号，如“uses: actions/checkout@v2”. 
 
 
+<br> </br> 
 
-# 新增:
-## 1.通用型yml文件，支持在当前仓库构建apk，也可选择在仓库的子目录中构建 <a href=".github/workflows/build_currentRepo.yml.txt">file</a>
 
-## 2.自动上传apk文件到release页面，无需手动上传 <a href=".github/workflows/UploadApk_To_ReleasePage.yml.txt">file</a>
+# 🔥🔥🔥新增:
+## 🔥1.通用型yml文件，支持在当前仓库构建apk，也可选择在仓库的子目录中构建 <a href=".github/workflows/build_currentRepo.yml.txt">file</a>
 
-## 3.教程: 可任意自行签名apk文件 <a href="HowToSignMyApk/">file</a>
+## 🔥2.自动上传apk文件到release页面，无需手动上传 <a href=".github/workflows/UploadApk_To_ReleasePage.yml.txt">file</a>
+
+## 🔥3.教程: 可任意自行签名apk文件 <a href="HowToSignMyApk/">file</a>
 
 <br> </br> 
 
