@@ -22,7 +22,7 @@ QA:
 
 ## 2.自动上传apk文件到release页面，无需手动上传 <a href=".github/workflows/UploadApk_To_ReleasePage.yml.txt">file</a>
 
-## 3.教程: 可任意自行签名apk文件 <a href=".github/workflows/build.yaml">file</a>
+## 3.教程: 可任意自行签名apk文件 <a href="HowToSignMyApk/">file</a>
 
 <br> </br> 
 
