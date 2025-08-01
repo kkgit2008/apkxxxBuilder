@@ -65,7 +65,7 @@ jobs:
         run: ./gradlew assembleRelease
 
       - name: Generate SHA256 checksums
-        working-directory: ${{ env.ANDROID_DIR }}
+        # working-directory: ${{ env.ANDROID_DIR }}
         run: |
           find . -name '*.apk' | while read apk; do
             sha256sum "$apk" > "${apk}.sha256"
@@ -80,3 +80,6 @@ jobs:
             ${{ env.ANDROID_DIR }}/app/build/outputs/apk/debug/*.sha256
             ${{ env.ANDROID_DIR }}/app/build/outputs/apk/release/*.apk
             ${{ env.ANDROID_DIR }}/app/build/outputs/apk/release/*.sha256
+            # flutter apk
+            # ./build/app/outputs/flutter-apk/*.apk
+            # ./build/app/outputs/flutter-apk/*.sha256
