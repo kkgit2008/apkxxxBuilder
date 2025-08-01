@@ -11,9 +11,9 @@ on:
 
 env:
   ANDROID_DIR: .
-  ##Build from root project(when 'app' folder is just at root)
+  ##Build from project root (when 'app' folder is just at project root)
   #ANDROID_DIR: android
-  ##Build from 'android' folder(when 'app' folder is in 'root/android' folder), modify it as you need.
+  ##Build from 'android' folder (when 'app' folder is in 'project/android' folder), modify it as you need.
 
 permissions:
   contents: write
@@ -56,30 +56,29 @@ jobs:
           if [ ! -f "gradlew" ]; then gradle wrapper; fi
           chmod +x gradlew
 
-      - name: Build Debug
+      - name: Build ${{ matrix.build_type }} APK
         working-directory: ${{ env.ANDROID_DIR }}
-        run: ./gradlew assembleDebug
-
-      - name: Build Release
-        working-directory: ${{ env.ANDROID_DIR }}
-        run: ./gradlew assembleRelease
-
-      - name: Generate SHA256 checksums
-        # working-directory: ${{ env.ANDROID_DIR }}
         run: |
-          find . -name '*.apk' | while read apk; do
-            sha256sum "$apk" > "${apk}.sha256"
-          done
+          build_type=${{ matrix.build_type }}
+          ./gradlew assemble${build_type^}
 
-      - name: Upload artifacts
+      - name: Show apk paths
+        run: |
+            echo ">>${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}:"
+            ls -la ${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}
+            # flutter apk
+            # echo ">>./build/app/outputs/flutter-apk:"
+            # ls -la ./build/app/outputs/flutter-apk
+
+      - name: Copy ${{ matrix.build_type }} APK
+        run: |
+          cp ${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk ./
+          # flutter apk
+          # cp ./build/app/outputs/flutter-apk/*.apk ./
+
+      - name: Upload ${{ matrix.build_type }} APK
         uses: actions/upload-artifact@v4
         with:
-          name: myapk
-          path: |
-            ${{ env.ANDROID_DIR }}/app/build/outputs/apk/debug/*.apk
-            ${{ env.ANDROID_DIR }}/app/build/outputs/apk/debug/*.sha256
-            ${{ env.ANDROID_DIR }}/app/build/outputs/apk/release/*.apk
-            ${{ env.ANDROID_DIR }}/app/build/outputs/apk/release/*.sha256
-            # flutter apk
-            # ./build/app/outputs/flutter-apk/*.apk
-            # ./build/app/outputs/flutter-apk/*.sha256
+          name: apk-${{ matrix.build_type }}
+          path: app-${{ matrix.build_type }}.apk
+
