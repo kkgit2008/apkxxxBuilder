@@ -22,7 +22,7 @@ jobs:
           
       - id: get-project
         name: Get project name
-        #run: echo "::set-output name=PROJECT::$(cat project-to-build)"
+        # run: echo "::set-output name=PROJECT::$(cat project-to-build)"
         run: echo "PROJECT=$(cat project-to-build)" >> $GITHUB_OUTPUT
         
       - name: Clone project
