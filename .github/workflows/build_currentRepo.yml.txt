@@ -1,19 +1,19 @@
 name: Android Build
 
-##To build from subfolder,just modify the 'ANDROID_DIR'
+### To build from subfolder,just modify the 'ANDROID_DIR'
 
 on:
   push:
-#    branches: [ "main","master","dev","release" ]
-#    ##Start build only on these branches
+    # branches: [ "main","master","dev","release" ]
+    ### Start build only on these branches
   workflow_dispatch:
-#  ##Support manual build in 'Actions/workflow'
+  ### Support manual build in 'Actions/workflow'
 
 env:
   ANDROID_DIR: .
-#  ##Build from project root (when 'app' folder is just at project root)
-#  ANDROID_DIR: android
-#  ##Build from 'android' folder (when 'app' folder is in 'project/android' folder), modify it as you need.
+  ### Build from project root (when 'app' folder is just at project root)
+  # ANDROID_DIR: android
+  ### Build from 'android' folder (when 'app' folder is in 'project/android' folder), modify it as you need.
 
 permissions:
   contents: write
