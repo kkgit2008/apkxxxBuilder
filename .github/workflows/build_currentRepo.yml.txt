@@ -4,16 +4,16 @@ name: Android Build
 
 on:
   push:
-    #branches: [ "main","master","dev","release" ]
-    ##Start build only on these branches
+#    branches: [ "main","master","dev","release" ]
+#    ##Start build only on these branches
   workflow_dispatch:
-  ##Support manual build in 'Actions/workflow'
+#  ##Support manual build in 'Actions/workflow'
 
 env:
   ANDROID_DIR: .
-  ##Build from project root (when 'app' folder is just at project root)
-  #ANDROID_DIR: android
-  ##Build from 'android' folder (when 'app' folder is in 'project/android' folder), modify it as you need.
+#  ##Build from project root (when 'app' folder is just at project root)
+#  ANDROID_DIR: android
+#  ##Build from 'android' folder (when 'app' folder is in 'project/android' folder), modify it as you need.
 
 permissions:
   contents: write
@@ -45,10 +45,10 @@ jobs:
             ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', '**/build.gradle') }}
 
-#      - name: Increase Gradle memory
-#        working-directory: ${{ env.ANDROID_DIR }}
-#        run: |
-#          printf "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g\n" >> gradle.properties
+      - name: Increase Gradle memory
+        working-directory: ${{ env.ANDROID_DIR }}
+        run: |
+          printf "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g\n" >> gradle.properties
 
       - name: Make gradlew executable
         working-directory: ${{ env.ANDROID_DIR }}
