@@ -1,19 +1,19 @@
 name: Release Upload
 
-# description:	Auto upload apk files onto release page, 
-# 				but you must add a new release first (without any apk files).
+### description:	Auto upload apk files onto release page, 
+### 				but you must add a new release first (without any apk files).
 
-# author:		kylecorry31
-# repo:			https://github.com/kylecorry31/Trail-Sense
+### author:		kylecorry31
+### repo:			https://github.com/kylecorry31/Trail-Sense
 
 on:
   release:
     types: [published]
 
 env:
-    # Signing INFO
+    ### Signing INFO
     DEV_STORE_FILE: ../debug.keystore
-    # Don't forget to put the key file into project root !
+    ### Don't forget to put the key file into project root !
     DEV_STORE_PASSWORD: android
     DEV_KEY_ALIAS: androiddebugkey
     DEV_KEY_PASSWORD: android
