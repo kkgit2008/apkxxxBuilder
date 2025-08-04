@@ -1,5 +1,4 @@
 
-# 🔥🔥🔥新版
 # 🔥🔥新增以下功能:
 
 * 🔥1.通用型yml文件，支持在当前仓库构建apk，也可选择在仓库的子目录中构建 <a href=".github/workflows/build_currentRepo.yml.txt">file</a>
@@ -12,9 +11,7 @@
 
 
 
-# [旧版 Android Builder]
-  
-使用方法：  
+# 🔥🔥使用方法：  
   
 1 将 project-to-build 内容更改为待打包的项目地址（ 如 https://github.com/kkgit2008/TVBoxOS ） 
  
