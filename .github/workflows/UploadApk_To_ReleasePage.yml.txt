@@ -60,6 +60,11 @@ jobs:
             -Ddev_key_alias="${{ env.DEV_KEY_ALIAS }}" \
             -Ddev_key_password="${{ env.DEV_KEY_PASSWORD }}"
 
+      - name: Show apk paths
+        run: |
+            echo ">>./app/build/outputs/apk/${{ matrix.build_type }}:"
+            ls -la ./app/build/outputs/apk/${{ matrix.build_type }}
+
       - name: Upload GitHub release APK to release
         uses: Shopify/upload-to-release@v2.0.0
         with:
