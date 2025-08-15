@@ -1,0 +1,209 @@
+name: Build with submodule & Publish APK
+
+on:
+  push:
+    tags:
+      - v*
+    branches:
+      - '**'
+  workflow_dispatch: { }
+
+env:
+  MAIN_NAME: 'kkgit2008/mainRepo' 
+  DEPENDENCY_NAME: 'kkgit2008/subRepo'
+
+  MAIN_REPO_BRANCH: 'mainBranch'
+  # 当前仓库分支
+  DEPENDENCY_REPO_BRANCH: 'subBranch'
+  # 外部仓库分支
+
+  MAIN_REPO_DIR: '.'
+  # 复制当前仓库的这个目录到临时目录
+  SUBMODULE_DIR: './subName'
+  # 复制外部仓库的这个目录到临时目录(可覆盖临时仓中的当前仓库文件)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      # 矩阵功能
+      matrix:
+#        build_type: ['debug', 'release']
+#        flavor_type: [ offline, online ]
+        build_type: ['release']
+        flavor_type: [ offline ]
+
+    steps:
+      - name: Cancel previous runs
+        uses: styfle/cancel-workflow-action@0.12.1
+        with:
+          access_token: ${{ github.token }}
+
+      # 第一步：检出主仓库 (username/repo@branch)
+      - name: Checkout Main Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.MAIN_NAME }}
+          ref: ${{ env.MAIN_REPO_BRANCH }}
+          path: ${{ env.MAIN_REPO_DIR }}
+#          submodules: true
+
+      # 第二步：检出依赖仓库 (username/repo2@branch2)
+      - name: Checkout sub Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DEPENDENCY_NAME }}
+          ref: ${{ env.DEPENDENCY_REPO_BRANCH }}
+          path: ${{ env.SUBMODULE_DIR }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # 第三步：验证分支和目录结构
+      - name: Verify Branches & Structure
+        run: |
+          echo ">>验证主仓库分支..."
+          cd ${{ env.MAIN_REPO_DIR }}
+          CURRENT_MAIN_BRANCH=$(git branch --show-current)
+          if [ "$CURRENT_MAIN_BRANCH" != "$MAIN_REPO_BRANCH" ]; then
+            echo ">>错误：主仓库分支不匹配！预期: $MAIN_REPO_BRANCH，实际: $CURRENT_MAIN_BRANCH"
+            exit 1
+          fi
+          
+          echo ">>验证依赖仓库分支..."
+          # cd ..
+          cd ${{ env.SUBMODULE_DIR }}
+          CURRENT_DEP_BRANCH=$(git branch --show-current)
+          if [ "$CURRENT_DEP_BRANCH" != "$DEPENDENCY_REPO_BRANCH" ]; then
+            echo ">>错误：依赖仓库分支不匹配！预期: $DEPENDENCY_REPO_BRANCH，实际: $CURRENT_DEP_BRANCH"
+            exit 1
+          fi
+          
+          echo ">>目录结构验证通过"
+
+      # 第四步：设置JDK环境
+      - name: set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      # 缓存 Android SDK
+      - name: Cache Android SDK
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/Android/Sdk
+          key: ${{ runner.os }}-android-sdk-${{ hashFiles('** /build.gradle') }}
+
+      # 缓存构建输出
+      - name: Cache build outputs
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ env.MAIN_REPO_DIR }}/app/build
+          key: ${{ runner.os }}-build-outputs-${{ github.sha }}
+
+      # 第五步：准备构建环境
+      - name: Grant execute permission for gradlew
+        working-directory: ${{ env.MAIN_REPO_DIR }}
+        run: chmod +x gradlew
+
+#./app/build/outputs/apk/offline/release/yuyanIme_offline_release.apk
+
+      # 第六步：构建APK
+      - name: Build APK for ${{ matrix.flavor_type }}_${{ matrix.build_type }}
+        working-directory: ${{ env.MAIN_REPO_DIR }}
+        run: |
+          build_type=${{ matrix.build_type }}
+          flavor_type=${{ matrix.flavor_type }}
+          ./gradlew assemble${flavor_type^}${build_type^}
+
+      - name: Generate SHA256 checksums
+        working-directory: ${{ env.MAIN_REPO_DIR }}
+        run: |
+          find ${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk -name '*.apk' | while read apk; do
+            sha256sum "$apk" > "${apk}.sha256"
+          done
+
+      - name: Show project paths
+        run: |
+            echo ">>project root:"
+            ls -la
+#            echo ">>./yuyansdk:"
+#            ls -la ./yuyansdk
+            echo ">>./app:"
+            ls -la ./app
+            echo ">>./app/build:"
+            ls -la ./app/build
+            echo ">>./app/build/outputs:"
+            ls -la ./app/build/outputs
+            echo ">>./app/build/outputs/apk:"
+            ls -la ./app/build/outputs/apk
+            echo ">>./app/build/outputs/apk/${{ matrix.flavor_type }}:"
+            ls -la ./app/build/outputs/apk/${{ matrix.flavor_type }}
+            echo ">>./app/build/outputs/apk/${{ matrix.flavor_type }}/${{ matrix.build_type }}:"
+            ls -la ./app/build/outputs/apk/${{ matrix.flavor_type }}/${{ matrix.build_type }}
+#            exit 1
+
+      # 第七步：获取版本信息（使用当前时间作为版本号）
+      - name: Set release TAG_VERSION_NAME
+        id: get_version_info
+        run: |
+          # 获取当前时间，格式为YYYYMMDD.HH（年-月-日-时）
+          TAG_VERSION_NAME=$(date +"%Y%m%d.%H%M")
+          echo ">>TAG_VERSION_NAME=${TAG_VERSION_NAME}" >> $GITHUB_ENV
+          echo ">>当前版本: ${TAG_VERSION_NAME}"
+
+      # 第八步：复制APK文件
+      - name: Copy ${{ matrix.flavor_type }}_${{ matrix.build_type }} APK
+        run: |
+          src_file="${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk/${{ matrix.flavor_type }}/${{ matrix.build_type }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk"
+          dest_file="${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk"
+
+          if [ -f "$src_file" ]; then
+            cp "$src_file" "$dest_file"
+            echo ">>APK已复制并重命名为: $dest_file"
+            ls -la
+          else
+            echo ">>错误: 未找到APK文件: $src_file"
+            exit 1
+          fi
+
+      # 复制sha256文件
+      - name: Copy ${{ matrix.flavor_type }}_${{ matrix.build_type }} APK.sha256
+        run: |
+          src_file="${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk/${{ matrix.flavor_type }}/${{ matrix.build_type }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk.sha256"
+          dest_file="${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk.sha256"
+
+          if [ -f "$src_file" ]; then
+            cp "$src_file" "$dest_file"
+            echo ">>sha256已复制并重命名为: $dest_file"
+            ls -la
+          else
+            echo ">>错误: 未找到sha256文件: $src_file"
+            exit 1
+          fi
+
+      # 第九步：上传APK
+      - name: Upload ${{ matrix.flavor_type }}_${{ matrix.build_type }} APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.zip
+          path: |
+            ${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk
+            ${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk.sha256
+
+      # 第十步：发布到GitHub Release
+      - name: Publish Release
+        if: startsWith(github.ref, 'refs/tags/')
+        # 仅在有tag时发布
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: ${{ env.MAIN_REPO_DIR }}/changelog/${{ env.TAG_VERSION_NAME }}/README.md
+          tag_name: ${{ env.TAG_VERSION_NAME }}
+          # tag_name: ${{ github.ref_name }}
+          files: |
+            ${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk
+            ${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk.sha256
+          token: ${{ secrets.GITHUB_TOKEN }}
