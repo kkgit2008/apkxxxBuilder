@@ -7,6 +7,8 @@
 
 * 🔥3.教程: 可任意自行签名apk文件 <a href="HowToSignMyApk/">file</a>
 
+* 🔥4.可将其他仓库作为子模块 <a href=".github/workflows/buildWithSubmodule.yml.txt">file</a>
+
 <br> </br> 
 
 
