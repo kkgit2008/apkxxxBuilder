@@ -1,5 +1,5 @@
-# ⚠️如需使用此开源代码，请标记来自'#kkgit2008'，谢谢！
-# ⚠️If you wanna use the open source code in this repo, mark the user name '#kkgit2008', thanks!
+# ⚠️如需使用此开源代码，请标记来自'#kkgit2008'，搬砖是个体力活，请给与尊重，谢谢！
+# ⚠️If you wanna use the open source code in this repo, mark the user name '#kkgit2008'. Please respect others and achievement of working! Thanks!
 
 * 
 * 
