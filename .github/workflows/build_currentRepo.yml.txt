@@ -115,9 +115,13 @@ jobs:
         run: |
           cp ${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk ./
 
+      - name: Generate build timestamp
+        id: timestamp
+        run: echo "TIMESTAMP=$(date +'%Y%m%d%H')" >> $GITHUB_ENV
+
       - name: Upload ${{ matrix.build_type }} APK
         uses: actions/upload-artifact@v4
         with:
-          name: apk-${{ matrix.build_type }}
+          name: apk-${{ matrix.build_type }}-${{ env.TIMESTAMP }}
           path: app-${{ matrix.build_type }}.apk
 
