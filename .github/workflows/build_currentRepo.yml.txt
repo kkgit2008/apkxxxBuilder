@@ -1,3 +1,5 @@
+### TIME:250830
+
 name: Android Build
 
 ### To build from subfolder,just modify the 'ANDROID_DIR'
