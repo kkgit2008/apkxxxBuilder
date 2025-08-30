@@ -22,8 +22,8 @@ jobs:
   build_apk:
     strategy:
       matrix:
-        build_type: ['debug', 'release']
-        # build_type: ['release']
+        # build_type: ['debug', 'release']
+        build_type: ['release']
     name: Build APK
     runs-on: ubuntu-latest
     steps:
@@ -35,6 +35,45 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v4
+
+
+      ### 自动接受所有Android许可证（含Preview）并安装NDK(需手动取消注释)
+      - name: Accept Android licenses and install NDK
+        run: |
+          ### 安装交互式应答工具expect
+          sudo apt-get update && sudo apt-get install -y expect
+          ### 修复语法错误+处理Preview许可证初始询问
+          expect -c '
+            set timeout 300
+            spawn /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses
+            ### 1. 先处理初始询问："Review licenses that have not been accepted (y/N)?"
+            expect {
+              "Review licenses that have not been accepted (y/N)?" {
+                send "y\r"
+                exp_continue
+              }
+            }
+            ### 2. 再处理所有许可证的Accept确认
+            while {[expect {
+              "Accept? (y/N):" {
+                send "y\r"
+                exp_continue
+              }
+              ### 忽略进度条输出，避免干扰匹配
+              -re "\[.*\] \d+%.*" {
+                exp_continue
+              }
+              ### 监听流程结束（必须返回布尔值，修复语法错误）
+              eof {
+                return 1
+              }
+            }]} {}
+          '
+          ### 直接安装所需NDK（所有许可证已接受）
+          # /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "ndk;29.0.13599879"
+        shell: bash
+
+
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
