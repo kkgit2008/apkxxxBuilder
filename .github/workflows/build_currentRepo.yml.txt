@@ -39,6 +39,7 @@ jobs:
         uses: actions/checkout@v4
 
 
+      ### 这个步骤极大的延长了构建时间，建议删除
       ### 自动接受所有Android许可证（含Preview）并安装NDK(需手动取消注释)
       - name: Accept Android licenses and install NDK
         run: |
