@@ -1,4 +1,4 @@
-### TIME:250830
+### TIME:250904
 
 name: Android Build
 
@@ -111,8 +111,16 @@ jobs:
 
       - name: Show apk paths
         run: |
-            echo ">>${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}:"
-            ls -la ${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}
+            echo ">>${{ env.ANDROID_DIR }}/:"
+            ls -la ${{ env.ANDROID_DIR }}/
+            echo ">>${{ env.ANDROID_DIR }}/app/:"
+            ls -la ${{ env.ANDROID_DIR }}/app/
+            echo ">>${{ env.ANDROID_DIR }}/app/build/:"
+            ls -la ${{ env.ANDROID_DIR }}/app/build/
+            echo ">>${{ env.ANDROID_DIR }}/app/build/outputs/:"
+            ls -la ${{ env.ANDROID_DIR }}/app/build/outputs/
+            echo ">>apk files in outputs folder:"
+            cd ${{ env.ANDROID_DIR }}/app/build/outputs/ && find -name *.apk
 
       - name: Copy ${{ matrix.build_type }} APK
         run: |
