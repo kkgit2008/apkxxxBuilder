@@ -1,4 +1,4 @@
-### TIME:250815
+### TIME:250904
 
 name: Build with submodule & Publish APK
 
@@ -131,22 +131,15 @@ jobs:
       - name: Show project paths
         run: |
             echo ">>project root:"
-            ls -la
-#            echo ">>./yuyansdk:"
-#            ls -la ./yuyansdk
-            echo ">>./app:"
-            ls -la ./app
-            echo ">>./app/build:"
-            ls -la ./app/build
-            echo ">>./app/build/outputs:"
-            ls -la ./app/build/outputs
-            echo ">>./app/build/outputs/apk:"
-            ls -la ./app/build/outputs/apk
-            echo ">>./app/build/outputs/apk/${{ matrix.flavor_type }}:"
-            ls -la ./app/build/outputs/apk/${{ matrix.flavor_type }}
-            echo ">>./app/build/outputs/apk/${{ matrix.flavor_type }}/${{ matrix.build_type }}:"
-            ls -la ./app/build/outputs/apk/${{ matrix.flavor_type }}/${{ matrix.build_type }}
-#            exit 1
+            ls -la ${{ env.MAIN_REPO_DIR }}/
+            echo ">>${{ env.MAIN_REPO_DIR }}/app:"
+            ls -la ${{ env.MAIN_REPO_DIR }}/app
+            echo ">>${{ env.MAIN_REPO_DIR }}/app/build:"
+            ls -la ${{ env.MAIN_REPO_DIR }}/app/build
+            echo ">>${{ env.MAIN_REPO_DIR }}/app/build/outputs:"
+            ls -la ${{ env.MAIN_REPO_DIR }}/app/build/outputs
+            echo ">>apk files in outputs folder:"
+            cd ${{ env.MAIN_REPO_DIR }}/app/build/outputs && find -name *.apk
 
       # 第七步：获取版本信息（使用当前时间作为版本号）
       - name: Set release TAG_VERSION_NAME
