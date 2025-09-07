@@ -1,6 +1,6 @@
 ### TIME:250825
 
-name: Build APK
+name: Build APK from other repo
 
 on:
   workflow_dispatch:
@@ -16,16 +16,12 @@ jobs:
           access_token: ${{ github.token }}
 
       - name: Checkout the code
-        ### uses: actions/checkout@v2
         uses: actions/checkout@v3
         
       - name: Set up JDK
         uses: actions/setup-java@v1
         with:
-          ### java-version: 1.8
           java-version: 17
-          ### java-version: 11
-          ### java-version: 18
           
       - id: get-project
         name: Get project name
@@ -44,8 +40,6 @@ jobs:
           
       - name: Upload APK
         uses: actions/upload-artifact@v4
-        ### uses: actions/upload-artifact@v3
-        ### uses: actions/upload-artifact@v2
         with:
           name: my-build-apk
           path: ./**/*.apk
