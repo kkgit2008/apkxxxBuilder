@@ -135,4 +135,5 @@ jobs:
         with:
           name: apk-${{ matrix.build_type }}
           path: app-${{ matrix.build_type }}.apk
+          # path: *.apk
 
