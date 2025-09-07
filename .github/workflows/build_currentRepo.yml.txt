@@ -48,7 +48,6 @@ jobs:
           key: ${{ runner.os }}-ndk-${{ env.NDK_VERSION }}
 
 
-      ### 这个步骤极大的延长了构建时间，建议删除
       # 自动接受所有Android许可证（含Preview）并安装NDK（仅当缓存未命中时）
       - name: Accept Android licenses and install NDK
         if: steps.cache-ndk.outputs.cache-hit != 'true'
