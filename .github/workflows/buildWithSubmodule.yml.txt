@@ -111,7 +111,19 @@ jobs:
         working-directory: ${{ env.MAIN_REPO_DIR }}
         run: chmod +x gradlew
 
-#./app/build/outputs/apk/offline/release/yuyanIme_offline_release.apk
+      - name: Set Gradle memory (support existing/missing config)
+        run: |
+          if grep -q "^org.gradle.jvmargs=" gradle.properties; then
+            # 存在则替换原有配置
+            sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g/' gradle.properties
+          else
+            # 不存在则在文件末尾安全新增（加换行避免拼接）
+            echo -e "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
+          fi
+          # 输出修改后的文件内容到日志
+          echo "=== Modified gradle.properties content ==="
+          cat gradle.properties
+
 
       # 第六步：构建APK
       - name: Build APK for ${{ matrix.flavor_type }}_${{ matrix.build_type }}
