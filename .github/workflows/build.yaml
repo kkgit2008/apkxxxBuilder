@@ -31,12 +31,29 @@ jobs:
       - name: Clone project
         run: git clone --depth=1 ${{ steps.get-project.outputs.PROJECT }} project
         
-      - name: Build the app
+      - name: Make gradlew executable
         working-directory: ./project
         run: |
           if [ ! -f "gradlew" ]; then gradle wrapper; fi
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace --warning-mode all
+
+      - name: Set Gradle memory (support existing/missing config)
+        run: |
+          if grep -q "^org.gradle.jvmargs=" gradle.properties; then
+            # 存在则替换原有配置
+            sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g/' gradle.properties
+          else
+            # 不存在则在文件末尾安全新增（加换行避免拼接）
+            echo -e "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
+          fi
+          # 输出修改后的文件内容到日志
+          echo "=== Modified gradle.properties content ==="
+          cat gradle.properties
+
+      - name: Build the app
+        working-directory: ./project
+        run: |
+          ./gradlew assembleDebug
           
       - name: Upload APK
         uses: actions/upload-artifact@v4
