@@ -1,4 +1,18 @@
-### TIME:250904
+### TIME:250909
+
+
+
+
+
+### 更简单的方案是在项目根目录添加 .gitmodules 文件，内容（参考AndroidIDE仓库):
+
+### [submodule "composite-builds/external/logback-android"]
+### 	path = composite-builds/external/logback-android
+### 	url = https://github.com/kkgit2008/logback-android
+
+
+
+
 
 name: Build with submodule & Publish APK
 
