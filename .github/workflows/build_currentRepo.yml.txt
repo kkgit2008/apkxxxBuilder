@@ -1,4 +1,4 @@
-### TIME:250907
+### TIME:250910
 
 name: Android Build
 
@@ -39,6 +39,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set short SHA
+        id: set_sha
+        run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+      
       # 缓存NDK安装目录
       - name: Cache NDK
         uses: actions/cache@v3
@@ -146,7 +150,7 @@ jobs:
       - name: Upload ${{ matrix.build_type }} APK
         uses: actions/upload-artifact@v4
         with:
-          name: apk-${{ matrix.build_type }}
+          name: apk-${{ matrix.build_type }}-${{ steps.set_sha.outputs.short_sha }}
           path: app-${{ matrix.build_type }}.apk
-          # path: *.apk
+          # path: */../../*.apk
 
