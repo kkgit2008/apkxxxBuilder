@@ -1,6 +1,6 @@
-version: 2
-
 ### 此文件用于自动更新工作流版本
+
+version: 2
 
 updates:
   - package-ecosystem: "github-actions"
@@ -8,12 +8,12 @@ updates:
     ### 工作流文件通常位于仓库根目录的 .github/workflows 下
     schedule:
       interval: "weekly"
-      ## # 每周检查更新
+      ### 每周检查更新
     groups:
       actions-dependencies:
         patterns:
           - "*"
-          ### 将所有 Actions 依赖合并为一个 PR 更新
+          ### 将所有 Actions 依赖合并为一个PR更新
     commit-message:
       prefix: "ci"
       ### 提交消息前缀，标识为 CI 配置更新
