@@ -1,9 +1,7 @@
 name: Delete old workflow runs
 
-### TIME:250816
-
 on:
-  workflow_dispatch: { }
+  workflow_dispatch:
     inputs:
       days:
         description: 'The min days to keep'
