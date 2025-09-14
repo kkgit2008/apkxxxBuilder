@@ -6,9 +6,9 @@ name: Android Build with flutter
 
 on:
   push:
-    # branches: [ "main","master","dev","release" ]
+    branches: [ "main","master" ]
     ### Start build only on these branches
-  workflow_dispatch:
+  workflow_dispatch: { }
   ### Support manual build in 'Actions/workflow'
 
 env:
