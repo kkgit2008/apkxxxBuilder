@@ -14,14 +14,14 @@
 
 
 
-name: Build with submodule & Publish APK
+name: Build with submodule
 
 on:
   push:
-    tags:
-      - v*
-    branches:
-      - '**'
+    branches: [ "main" , "master" ]
+    paths-ignore:
+      - '**.md'
+      - '.github/workflows/*.yml'
   workflow_dispatch: { }
 
 env:
