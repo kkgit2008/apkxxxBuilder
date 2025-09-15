@@ -1,0 +1,66 @@
+### TIME:250915
+
+
+
+name: Build APK from other repo
+
+on:
+  ### 只能手动开启构建
+  workflow_dispatch: { }
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cancel previous runs
+        uses: styfle/cancel-workflow-action@0.12.1
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Checkout the code
+        uses: actions/checkout@v4
+        
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: 17
+          
+      - id: get-project
+        name: Get project name
+        # run: echo "::set-output name=PROJECT::$(cat project-to-build)"
+        run: echo "PROJECT=$(cat project-to-build)" >> $GITHUB_OUTPUT
+        
+      - name: Clone project
+        run: git clone --depth=1 ${{ steps.get-project.outputs.PROJECT }} project
+        
+      - name: Make gradlew executable
+        working-directory: ./project
+        run: |
+          if [ ! -f "gradlew" ]; then gradle wrapper; fi
+          chmod +x gradlew
+
+      - name: Set Gradle memory ###support existing/missing config
+        run: |
+          if grep -q "^org.gradle.jvmargs=" gradle.properties; then
+            ### 存在则替换原有配置
+            sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g/' gradle.properties
+          else
+            ### 不存在则在文件末尾安全新增（加换行避免拼接）
+            echo -e "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
+          fi
+          ### 输出修改后的文件内容到日志
+          echo "=== Modified gradle.properties content ==="
+          cat gradle.properties
+
+      - name: Build APK
+        working-directory: ./project
+        run: |
+          ./gradlew assembleDebug
+          
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-build-from-other-repo
+          path: ./**/*.apk
+

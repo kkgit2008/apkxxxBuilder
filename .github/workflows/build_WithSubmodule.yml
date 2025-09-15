@@ -1,0 +1,199 @@
+### TIME:250915
+
+
+
+
+
+### 更简单的方案是在项目根目录添加 .gitmodules 文件，内容（参考AndroidIDE仓库):
+
+### [submodule "composite-builds/external/logback-android"]
+### 	path = composite-builds/external/logback-android
+### 	url = https://github.com/kkgit2008/logback-android
+
+
+
+
+
+name: Build with submodule
+
+on:
+  push:
+    branches: [ "main" , "master" ]
+    paths-ignore:
+      - '**.md'
+      - '.github/workflows/*.yml'
+  workflow_dispatch: { }
+
+env:
+  MAIN_NAME: 'kkgit2008/mainRepo' 
+  DEPENDENCY_NAME: 'kkgit2008/subRepo'
+
+  MAIN_REPO_BRANCH: 'mainBranch'
+  ### 当前仓库分支
+  DEPENDENCY_REPO_BRANCH: 'subBranch'
+  ### 外部仓库分支
+
+  MAIN_REPO_DIR: '.'
+  ### 复制当前仓库到这个临时目录
+  SUBMODULE_DIR: './subName'
+  ### 复制外部仓库到这个临时目录(可覆盖临时仓中的当前文件)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      ### 矩阵功能
+      matrix:
+#        build_type: ['debug', 'release']
+#        flavor_type: [ offline, online ]
+        build_type: ['release']
+
+    steps:
+      - name: Cancel previous runs
+        uses: styfle/cancel-workflow-action@0.12.1
+        with:
+          access_token: ${{ github.token }}
+
+      ### 检出主仓库 (username/repo@branch)
+      - name: Checkout Main Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.MAIN_NAME }}
+          ref: ${{ env.MAIN_REPO_BRANCH }}
+          path: ${{ env.MAIN_REPO_DIR }}
+#          submodules: true
+
+      ### 检出依赖仓库 (username/repo2@branch2)
+      - name: Checkout sub Repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.DEPENDENCY_NAME }}
+          ref: ${{ env.DEPENDENCY_REPO_BRANCH }}
+          path: ${{ env.SUBMODULE_DIR }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      ### 验证分支和目录结构
+      - name: Verify Branches & Structure
+        run: |
+          echo ">>验证主仓库分支..."
+          cd ${{ env.MAIN_REPO_DIR }}
+          CURRENT_MAIN_BRANCH=$(git branch --show-current)
+          if [ "$CURRENT_MAIN_BRANCH" != "$MAIN_REPO_BRANCH" ]; then
+            echo ">>错误：主仓库分支不匹配！预期: $MAIN_REPO_BRANCH，实际: $CURRENT_MAIN_BRANCH"
+            exit 1
+          fi
+          
+          echo ">>验证依赖仓库分支..."
+          cd ${{ env.SUBMODULE_DIR }}
+          CURRENT_DEP_BRANCH=$(git branch --show-current)
+          if [ "$CURRENT_DEP_BRANCH" != "$DEPENDENCY_REPO_BRANCH" ]; then
+            echo ">>错误：依赖仓库分支不匹配！预期: $DEPENDENCY_REPO_BRANCH，实际: $CURRENT_DEP_BRANCH"
+            exit 1
+          fi
+          
+          echo ">>目录结构验证通过"
+
+      ### 设置JDK环境
+      - name: set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      ### 缓存 SDK
+      - name: Cache Android SDK
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/Android/Sdk
+          key: ${{ runner.os }}-android-sdk-${{ hashFiles('** /build.gradle') }}
+
+      ### 缓存构建输出
+      - name: Cache build
+        uses: actions/cache@v3
+        with:
+          path: |
+            ${{ env.MAIN_REPO_DIR }}/app/build
+          key: ${{ runner.os }}-build-outputs-${{ github.sha }}
+
+      ### 准备构建环境
+      - name: Grant execute permission for gradlew
+        working-directory: ${{ env.MAIN_REPO_DIR }}
+        run: chmod +x gradlew
+
+      - name: Set Gradle memory (support existing/missing config)
+        run: |
+          if grep -q "^org.gradle.jvmargs=" gradle.properties; then
+            ### 存在则替换原有配置
+            sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g/' gradle.properties
+          else
+            ### 不存在则在文件末尾安全新增（加换行避免拼接）
+            echo -e "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
+          fi
+          ### 输出修改后的文件内容到日志
+          echo "=== Modified gradle.properties content ==="
+          cat gradle.properties
+
+      ### 构建APK
+      - name: Build APK for ${{ matrix.build_type }}
+        working-directory: ${{ env.MAIN_REPO_DIR }}
+        run: |
+          build_type=${{ matrix.build_type }}
+          # flavor_type=${{ matrix.flavor_type }}
+          ./gradlew assemble${build_type^}
+
+      - name: Generate SHA256 checksums
+        working-directory: ${{ env.MAIN_REPO_DIR }}
+        run: |
+          find ${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk -name '*.apk' | while read apk; do
+            sha256sum "$apk" > "${apk}.sha256"
+          done
+
+      ### 显示目录结构
+      - name: Show project paths
+        run: |
+            echo ">>project root:"
+            ls -la ${{ env.MAIN_REPO_DIR }}/
+            echo ">>${{ env.MAIN_REPO_DIR }}/app:"
+            ls -la ${{ env.MAIN_REPO_DIR }}/app
+            echo ">>${{ env.MAIN_REPO_DIR }}/app/build:"
+            ls -la ${{ env.MAIN_REPO_DIR }}/app/build
+            echo ">>${{ env.MAIN_REPO_DIR }}/app/build/outputs:"
+            ls -la ${{ env.MAIN_REPO_DIR }}/app/build/outputs
+            echo ">>apk files in outputs folder:"
+            cd ${{ env.MAIN_REPO_DIR }}/app/build/outputs && find -name *.apk
+
+      ### 使用当前时间作为版本
+      - name: Set release TAG_VERSION_NAME
+        id: get_version_info
+        run: |
+          ### 获取当前时间，格式为YYMMDD.HH（年-月-日-时-分）
+          TAG_VERSION_NAME=$(date +"%y%m%d.%H%M")
+          echo ">>TAG_VERSION_NAME=${TAG_VERSION_NAME}" >> $GITHUB_ENV
+          echo ">>当前版本: ${TAG_VERSION_NAME}"
+      
+      ### 上传APK
+      - name: Upload ${{ matrix.build_type }} APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-${{ matrix.build_type }}
+          path: |
+            ${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk
+            ${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk.sha256
+
+      ### 发布到GitHub Release
+      - name: Publish Release
+        if: startsWith(github.ref, 'refs/tags/')
+        ### 有新tag时才发布
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: ${{ env.MAIN_REPO_DIR }}/changelog/${{ env.TAG_VERSION_NAME }}/README.md
+          tag_name: ${{ env.TAG_VERSION_NAME }}
+          # tag_name: ${{ github.ref_name }}
+          files: |
+            ${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk
+            ${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk.sha256
+          token: ${{ secrets.GITHUB_TOKEN }}
+
