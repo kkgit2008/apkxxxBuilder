@@ -29,21 +29,21 @@ env:
   DEPENDENCY_NAME: 'kkgit2008/subRepo'
 
   MAIN_REPO_BRANCH: 'mainBranch'
-  # 当前仓库分支
+  ### 当前仓库分支
   DEPENDENCY_REPO_BRANCH: 'subBranch'
-  # 外部仓库分支
+  ### 外部仓库分支
 
   MAIN_REPO_DIR: '.'
-  # 复制当前仓库到这个临时目录
+  ### 复制当前仓库到这个临时目录
   SUBMODULE_DIR: './subName'
-  # 复制外部仓库到这个临时目录(可覆盖临时仓中的当前文件)
+  ### 复制外部仓库到这个临时目录(可覆盖临时仓中的当前文件)
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     strategy:
-      # 矩阵功能
+      ### 矩阵功能
       matrix:
 #        build_type: ['debug', 'release']
 #        flavor_type: [ offline, online ]
@@ -55,7 +55,7 @@ jobs:
         with:
           access_token: ${{ github.token }}
 
-      # 第一步：检出主仓库 (username/repo@branch)
+      ### 检出主仓库 (username/repo@branch)
       - name: Checkout Main Repository
         uses: actions/checkout@v4
         with:
@@ -64,7 +64,7 @@ jobs:
           path: ${{ env.MAIN_REPO_DIR }}
 #          submodules: true
 
-      # 第二步：检出依赖仓库 (username/repo2@branch2)
+      ### 检出依赖仓库 (username/repo2@branch2)
       - name: Checkout sub Repository
         uses: actions/checkout@v4
         with:
@@ -73,7 +73,7 @@ jobs:
           path: ${{ env.SUBMODULE_DIR }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      # 第三步：验证分支和目录结构
+      ### 验证分支和目录结构
       - name: Verify Branches & Structure
         run: |
           echo ">>验证主仓库分支..."
@@ -85,7 +85,6 @@ jobs:
           fi
           
           echo ">>验证依赖仓库分支..."
-          # cd ..
           cd ${{ env.SUBMODULE_DIR }}
           CURRENT_DEP_BRANCH=$(git branch --show-current)
           if [ "$CURRENT_DEP_BRANCH" != "$DEPENDENCY_REPO_BRANCH" ]; then
@@ -95,7 +94,7 @@ jobs:
           
           echo ">>目录结构验证通过"
 
-      # 第四步：设置JDK环境
+      ### 设置JDK环境
       - name: set up JDK
         uses: actions/setup-java@v4
         with:
@@ -103,7 +102,7 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      # 缓存 Android SDK
+      ### 缓存 SDK
       - name: Cache Android SDK
         uses: actions/cache@v3
         with:
@@ -111,7 +110,7 @@ jobs:
             ~/Android/Sdk
           key: ${{ runner.os }}-android-sdk-${{ hashFiles('** /build.gradle') }}
 
-      # 缓存构建输出
+      ### 缓存构建输出
       - name: Cache build
         uses: actions/cache@v3
         with:
@@ -119,7 +118,7 @@ jobs:
             ${{ env.MAIN_REPO_DIR }}/app/build
           key: ${{ runner.os }}-build-outputs-${{ github.sha }}
 
-      # 第五步：准备构建环境
+      ### 准备构建环境
       - name: Grant execute permission for gradlew
         working-directory: ${{ env.MAIN_REPO_DIR }}
         run: chmod +x gradlew
@@ -127,18 +126,17 @@ jobs:
       - name: Set Gradle memory (support existing/missing config)
         run: |
           if grep -q "^org.gradle.jvmargs=" gradle.properties; then
-            # 存在则替换原有配置
+            ### 存在则替换原有配置
             sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g/' gradle.properties
           else
-            # 不存在则在文件末尾安全新增（加换行避免拼接）
+            ### 不存在则在文件末尾安全新增（加换行避免拼接）
             echo -e "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
           fi
-          # 输出修改后的文件内容到日志
+          ### 输出修改后的文件内容到日志
           echo "=== Modified gradle.properties content ==="
           cat gradle.properties
 
-
-      # 第六步：构建APK
+      ### 构建APK
       - name: Build APK for ${{ matrix.build_type }}
         working-directory: ${{ env.MAIN_REPO_DIR }}
         run: |
@@ -153,6 +151,7 @@ jobs:
             sha256sum "$apk" > "${apk}.sha256"
           done
 
+      ### 显示目录结构
       - name: Show project paths
         run: |
             echo ">>project root:"
@@ -166,69 +165,35 @@ jobs:
             echo ">>apk files in outputs folder:"
             cd ${{ env.MAIN_REPO_DIR }}/app/build/outputs && find -name *.apk
 
-      # 第七步：获取版本信息（使用当前时间作为版本号）
+      ### 使用当前时间作为版本
       - name: Set release TAG_VERSION_NAME
         id: get_version_info
         run: |
-          # 获取当前时间，格式为YYYYMMDD.HH（年-月-日-时）
-          TAG_VERSION_NAME=$(date +"%Y%m%d.%H%M")
+          ### 获取当前时间，格式为YYMMDD.HH（年-月-日-时-分）
+          TAG_VERSION_NAME=$(date +"%y%m%d.%H%M")
           echo ">>TAG_VERSION_NAME=${TAG_VERSION_NAME}" >> $GITHUB_ENV
           echo ">>当前版本: ${TAG_VERSION_NAME}"
-
-      # 第八步：复制APK文件
-      - name: Copy ${{ matrix.build_type }} APK
-        run: |
-          src_file="${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk"
-          dest_file="${{ env.MAIN_REPO_DIR }}/"
-
-          if [ -f "$src_file" ]; then
-            cp "$src_file" "$dest_file"
-            echo ">>APK文件已复制到: $dest_file"
-            ls -la
-          else
-            echo ">>错误: 未找到APK文件: $src_file"
-            exit 1
-          fi
-
-      # 复制sha256文件
-      - name: Copy ${{ matrix.build_type }} APK.sha256
-        run: |
-          src_file="${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk.sha256"
-          dest_file="${{ env.MAIN_REPO_DIR }}/"
-
-          if [ -f "$src_file" ]; then
-            cp "$src_file" "$dest_file"
-            echo ">>sha256文件已复制到: $dest_file"
-            ls -la
-          else
-            echo ">>错误: 未找到sha256文件: $src_file"
-            exit 1
-          fi
-
-      # 第九步：上传APK
+      
+      ### 上传APK
       - name: Upload ${{ matrix.build_type }} APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-${{ matrix.build_type }}
+          name: apk-${{ matrix.build_type }}
           path: |
-            *.apk
-            *.apk.sha256
-            # ${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk
-            # ${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk.sha256
+            ${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk
+            ${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk.sha256
 
-      # 第十步：发布到GitHub Release
+      ### 发布到GitHub Release
       - name: Publish Release
         if: startsWith(github.ref, 'refs/tags/')
-        # 仅在有tag时发布
+        ### 有新tag时才发布
         uses: softprops/action-gh-release@v2
         with:
           body_path: ${{ env.MAIN_REPO_DIR }}/changelog/${{ env.TAG_VERSION_NAME }}/README.md
           tag_name: ${{ env.TAG_VERSION_NAME }}
           # tag_name: ${{ github.ref_name }}
           files: |
-            ${{ env.MAIN_REPO_DIR }}/*.apk
-            ${{ env.MAIN_REPO_DIR }}/*.apk.sha256
-            # ${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk
-            # ${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk.sha256
+            ${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk
+            ${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk.sha256
           token: ${{ secrets.GITHUB_TOKEN }}
 
