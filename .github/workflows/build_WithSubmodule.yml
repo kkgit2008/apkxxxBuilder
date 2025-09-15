@@ -18,8 +18,8 @@ name: Build with submodule & Publish APK
 
 on:
   push:
-#    tags:
-#      - v*
+    tags:
+      - v*
     branches:
       - '**'
   workflow_dispatch: { }
