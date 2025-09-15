@@ -1,13 +1,16 @@
-### TIME:250914
+### TIME:250915
 
-name: Upload Release
+
+
+name: Build and Release APK
 
 on:
-#  push:
-#    branches: [ main, master ]
-#    paths:
-#      ### 只有RELEASE_INFO文件变更时触发
-#      - 'RELEASE_INFO'
+  push:
+    branches: [ main, master ]
+    paths:
+      ### 只在RELEASE_INFO文件变更时触发
+      ### 文件内容可参考apkxxxAndroIDE仓库
+      - 'RELEASE_INFO'
   workflow_dispatch: {}
   ### 允许手动触发
 
@@ -147,7 +150,10 @@ jobs:
           ### 刷新本地标签信息，确保后续步骤能看到新创建的标签
           git fetch --tags
 
+
       ### 以下步骤添加了条件判断，只有当tag不存在时才执行
+
+
       - name: Set up JDK 17
         if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
         uses: actions/setup-java@v4
