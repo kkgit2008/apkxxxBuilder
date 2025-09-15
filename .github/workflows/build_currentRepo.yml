@@ -1,6 +1,6 @@
-### TIME:250910
+### TIME:250915
 
-name: Android Build
+name: Build current repo with NDK
 
 ### To build from subfolder,just modify the 'ANDROID_DIR'
 
@@ -151,6 +151,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: apk-${{ matrix.build_type }}-${{ steps.set_sha.outputs.short_sha }}
-          path: app-${{ matrix.build_type }}.apk
-          # path: */../../*.apk
+          path: app-${{ matrix.build_type }}*apk
 
