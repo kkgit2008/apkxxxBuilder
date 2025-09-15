@@ -1,4 +1,4 @@
-### TIME:250909
+### TIME:250915
 
 
 
@@ -34,9 +34,9 @@ env:
   # 外部仓库分支
 
   MAIN_REPO_DIR: '.'
-  # 复制当前仓库的这个目录到临时目录
+  # 复制当前仓库到这个临时目录
   SUBMODULE_DIR: './subName'
-  # 复制外部仓库的这个目录到临时目录(可覆盖临时仓中的当前仓库文件)
+  # 复制外部仓库到这个临时目录(可覆盖临时仓中的当前文件)
 
 jobs:
   build:
@@ -48,7 +48,6 @@ jobs:
 #        build_type: ['debug', 'release']
 #        flavor_type: [ offline, online ]
         build_type: ['release']
-        flavor_type: [ offline ]
 
     steps:
       - name: Cancel previous runs
@@ -113,7 +112,7 @@ jobs:
           key: ${{ runner.os }}-android-sdk-${{ hashFiles('** /build.gradle') }}
 
       # 缓存构建输出
-      - name: Cache build outputs
+      - name: Cache build
         uses: actions/cache@v3
         with:
           path: |
@@ -140,12 +139,12 @@ jobs:
 
 
       # 第六步：构建APK
-      - name: Build APK for ${{ matrix.flavor_type }}_${{ matrix.build_type }}
+      - name: Build APK for ${{ matrix.build_type }}
         working-directory: ${{ env.MAIN_REPO_DIR }}
         run: |
           build_type=${{ matrix.build_type }}
-          flavor_type=${{ matrix.flavor_type }}
-          ./gradlew assemble${flavor_type^}${build_type^}
+          # flavor_type=${{ matrix.flavor_type }}
+          ./gradlew assemble${build_type^}
 
       - name: Generate SHA256 checksums
         working-directory: ${{ env.MAIN_REPO_DIR }}
@@ -177,14 +176,14 @@ jobs:
           echo ">>当前版本: ${TAG_VERSION_NAME}"
 
       # 第八步：复制APK文件
-      - name: Copy ${{ matrix.flavor_type }}_${{ matrix.build_type }} APK
+      - name: Copy ${{ matrix.build_type }} APK
         run: |
-          src_file="${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk/${{ matrix.flavor_type }}/${{ matrix.build_type }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk"
-          dest_file="${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk"
+          src_file="${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk"
+          dest_file="${{ env.MAIN_REPO_DIR }}/"
 
           if [ -f "$src_file" ]; then
             cp "$src_file" "$dest_file"
-            echo ">>APK已复制并重命名为: $dest_file"
+            echo ">>APK文件已复制到: $dest_file"
             ls -la
           else
             echo ">>错误: 未找到APK文件: $src_file"
@@ -192,14 +191,14 @@ jobs:
           fi
 
       # 复制sha256文件
-      - name: Copy ${{ matrix.flavor_type }}_${{ matrix.build_type }} APK.sha256
+      - name: Copy ${{ matrix.build_type }} APK.sha256
         run: |
-          src_file="${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk/${{ matrix.flavor_type }}/${{ matrix.build_type }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk.sha256"
-          dest_file="${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk.sha256"
+          src_file="${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk.sha256"
+          dest_file="${{ env.MAIN_REPO_DIR }}/"
 
           if [ -f "$src_file" ]; then
             cp "$src_file" "$dest_file"
-            echo ">>sha256已复制并重命名为: $dest_file"
+            echo ">>sha256文件已复制到: $dest_file"
             ls -la
           else
             echo ">>错误: 未找到sha256文件: $src_file"
@@ -207,13 +206,15 @@ jobs:
           fi
 
       # 第九步：上传APK
-      - name: Upload ${{ matrix.flavor_type }}_${{ matrix.build_type }} APK
+      - name: Upload ${{ matrix.build_type }} APK
         uses: actions/upload-artifact@v4
         with:
-          name: yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.zip
+          name: app-${{ matrix.build_type }}
           path: |
-            ${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk
-            ${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk.sha256
+            *.apk
+            *.apk.sha256
+            # ${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk
+            # ${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk.sha256
 
       # 第十步：发布到GitHub Release
       - name: Publish Release
@@ -225,6 +226,9 @@ jobs:
           tag_name: ${{ env.TAG_VERSION_NAME }}
           # tag_name: ${{ github.ref_name }}
           files: |
-            ${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk
-            ${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk.sha256
+            ${{ env.MAIN_REPO_DIR }}/*.apk
+            ${{ env.MAIN_REPO_DIR }}/*.apk.sha256
+            # ${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk
+            # ${{ env.MAIN_REPO_DIR }}/yuyanIme_${{ matrix.flavor_type }}_${{ matrix.build_type }}.apk.sha256
           token: ${{ secrets.GITHUB_TOKEN }}
+
