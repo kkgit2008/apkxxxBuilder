@@ -1,6 +1,6 @@
 ### TIME:250915
 
-name: Build current repo with NDK
+name: Build current repo
 
 ### To build from subfolder,just modify the 'ANDROID_DIR'
 
@@ -16,7 +16,6 @@ env:
   ### Build from project root (when 'app' folder is just at project root)
   # ANDROID_DIR: android
   ### Build from 'android' folder (when 'app' folder is in 'project/android' folder), modify it as you need.
-  NDK_VERSION: 29.0.13599879  # 定义NDK版本便于统一管理
 
 permissions:
   contents: write
@@ -42,53 +41,6 @@ jobs:
       - name: Set short SHA
         id: set_sha
         run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
-      
-      # 缓存NDK安装目录
-      - name: Cache NDK
-        uses: actions/cache@v3
-        id: cache-ndk
-        with:
-          path: /usr/local/lib/android/sdk/ndk/${{ env.NDK_VERSION }}
-          key: ${{ runner.os }}-ndk-${{ env.NDK_VERSION }}
-
-
-      # 自动接受所有Android许可证（含Preview）并安装NDK（仅当缓存未命中时）
-      - name: Accept Android licenses and install NDK
-        if: steps.cache-ndk.outputs.cache-hit != 'true'
-        run: |
-          # 安装交互式应答工具expect
-          sudo apt-get update && sudo apt-get install -y expect
-          # 修复语法错误+处理Preview许可证初始询问
-          expect -c '
-            set timeout 300
-            spawn /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager --licenses
-            # 1. 先处理初始询问："Review licenses that have not been accepted (y/N)?"
-            expect {
-              "Review licenses that have not been accepted (y/N)?" {
-                send "y\r"
-                exp_continue
-              }
-            }
-            # 2. 再处理所有许可证的Accept确认
-            while {[expect {
-              "Accept? (y/N):" {
-                send "y\r"
-                exp_continue
-              }
-              # 忽略进度条输出，避免干扰匹配
-              -re "\[.*\] \d+%.*" {
-                exp_continue
-              }
-              # 监听流程结束
-              eof {
-                return 1
-              }
-            }]} {}
-          '
-          # 直接安装所需NDK（所有许可证已接受）
-          /usr/local/lib/android/sdk/cmdline-tools/latest/bin/sdkmanager "ndk;${{ env.NDK_VERSION }}"
-        shell: bash
-
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -103,7 +55,6 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
             ${{ env.ANDROID_DIR }}/app/build
-            ${{ env.ANDROID_DIR }}/app/.cxx  # NDK构建缓存目录
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', '**/build.gradle', '**/CMakeLists.txt') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
@@ -143,13 +94,9 @@ jobs:
             echo ">>${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}:"
             ls -la ${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}
 
-      - name: Copy ${{ matrix.build_type }} APK
-        run: |
-          cp ${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk ./
-
       - name: Upload ${{ matrix.build_type }} APK
         uses: actions/upload-artifact@v4
         with:
           name: apk-${{ matrix.build_type }}-${{ steps.set_sha.outputs.short_sha }}
-          path: *.apk
+          path: ${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk
 
