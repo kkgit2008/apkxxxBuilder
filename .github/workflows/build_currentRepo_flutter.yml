@@ -8,6 +8,9 @@ on:
   push:
     branches: [ "main","master" ]
     ### Start build only on these branches
+    paths-ignore:
+      - '**.md'
+      - '.github/workflows/*.yml'
   workflow_dispatch: { }
   ### Support manual build in 'Actions/workflow'
 
