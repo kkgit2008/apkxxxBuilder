@@ -7,6 +7,9 @@ name: Build current repo
 on:
   push:
     branches: [ "main","master" ]
+    paths-ignore:
+      - '**.md'
+      - '.github/workflows/*.yml'
     ### Start build only on these branches
   workflow_dispatch: { }
   ### Support manual build in 'Actions/workflow'
