@@ -1,4 +1,4 @@
-### TIME:250915
+### TIME:250916
 
 name: Build with flutter
 
@@ -48,6 +48,9 @@ jobs:
           flutter-version: '3.32.8'
           channel: 'stable'
           cache: true
+
+### flutter-DART版本对应关系: https://blog.csdn.net/zhukui66/article/details/133300093
+
 
 #      ### 调试 - 彻底清理并初始化
 #      - name: Reset project
