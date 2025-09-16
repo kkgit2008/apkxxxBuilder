@@ -115,7 +115,7 @@ jobs:
           ### 添加Flutter官方提供的国际化语言支持库
           flutter pub add flutter_localizations --sdk=flutter || exit 1
           ### 升级所有依赖包到最新兼容版本
-          flutter pub upgrade || exit 1
+          # flutter pub upgrade || exit 1
 
       - name: Prepare Flutter
         run: |
