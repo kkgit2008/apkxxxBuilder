@@ -93,7 +93,7 @@ jobs:
         shell: bash
 
 
-      - name: Set up JDK 17
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           java-version: '17'
