@@ -1,6 +1,6 @@
 ### TIME:250915
 
-name: Build with NDK
+name: Build With NDK
 
 ### To build from subfolder,just modify the 'ANDROID_DIR'
 
@@ -19,7 +19,8 @@ env:
   ### Build from project root (when 'app' folder is just at project root)
   # ANDROID_DIR: android
   ### Build from 'android' folder (when 'app' folder is in 'project/android' folder), modify it as you need.
-  NDK_VERSION: 29.0.13599879  ### 定义NDK版本便于统一管理
+  NDK_VERSION: 29.0.13599879
+  CMAKE_VERSION: 3.30.5
 
 permissions:
   contents: write
@@ -99,7 +100,17 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Cache Gradle and build outputs
+      - name: Setup Android SDK with cmake
+        uses: android-actions/setup-android@v3
+        with:
+          components: 'cmake;${{ env.CMAKE_VERSION }}'
+
+      - name: Install cmake
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '${{ env.CMAKE_VERSION }}'
+
+      - name: Cache gradle and build outputs
         uses: actions/cache@v3
         with:
           path: |
@@ -111,7 +122,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Increase Gradle memory
+      - name: Increase gradle memory
         working-directory: ${{ env.ANDROID_DIR }}
         run: |
           printf "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g\n" >> gradle.properties
@@ -122,7 +133,7 @@ jobs:
           if [ ! -f "gradlew" ]; then gradle wrapper; fi
           chmod +x gradlew
 
-      - name: Set Gradle memory (support existing/missing config)
+      - name: Set gradle memory ### support existing/missing config
         run: |
           if grep -q "^org.gradle.jvmargs=" gradle.properties; then
             ### 存在则替换原有配置
