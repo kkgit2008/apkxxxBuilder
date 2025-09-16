@@ -1,4 +1,4 @@
-### TIME:250915
+### TIME:250916
 
 
 
@@ -47,7 +47,7 @@ jobs:
       matrix:
 #        build_type: ['debug', 'release']
 #        flavor_type: [ offline, online ]
-        build_type: ['release']
+        build_type: ['debug']
 
     steps:
       - name: Cancel previous runs
