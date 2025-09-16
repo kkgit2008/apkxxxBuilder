@@ -50,13 +50,13 @@ jobs:
           cache: true
 
 #      ### 调试 - 彻底清理并初始化
-#       - name: Reset project
+#      - name: Reset project
 #        ### 确保在项目根目录执行
-#         working-directory: .
-#         run: |
-#           flutter clean
-#           rm -rf .dart_tool pubspec.lock
-#           echo ">>clean finished"
+#        working-directory: .
+#        run: |
+#          flutter clean
+#          rm -rf .dart_tool pubspec.lock
+#          echo ">>clean finished"
 
       - name: Configure Flutter SDK
       ### 自动生成 local.properties 并设置 flutter.sdk
