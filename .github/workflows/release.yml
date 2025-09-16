@@ -127,7 +127,7 @@ jobs:
       - name: Check if tag exists
         id: check_tag
         run: |
-          TAG="v${{ steps.release_info.outputs.tag_name }}"
+          TAG="${{ steps.release_info.outputs.tag_name }}"
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "tag_exists=true" >> $GITHUB_OUTPUT
             echo "Tag $TAG already exists"
