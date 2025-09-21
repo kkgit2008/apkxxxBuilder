@@ -1,5 +1,5 @@
 # 发布标签（必填）
-TAG_NAME=v2.7.1
+TAG_NAME=v1.0.1
 
 # 发布标题（可选，默认值为"TAG_NAME shortSHA"）
 # TITLE=xx shortSHA
@@ -15,4 +15,4 @@ NOTES=
 # What's Changed：
 - Nothing changed.
 # FullChangelog: 
-* https://github.com/kkgit2008/apkxxxAndroidIDE/compare/v2.7.0...v2.7.1
+* https://github.com/kkgit2008/repo/compare/v1.0.0...v1.0.1
