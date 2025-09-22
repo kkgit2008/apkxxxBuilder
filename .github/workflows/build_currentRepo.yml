@@ -1,6 +1,8 @@
 ### TIME:250915
 
-name: Build current repo
+
+
+name: Build Current Repo
 
 ### To build from subfolder,just modify the 'ANDROID_DIR'
 
@@ -33,25 +35,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      - name: Cancel previous runs
+      - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
         with:
           access_token: ${{ github.token }}
 
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set short SHA
+      - name: Set Short SHA
         id: set_sha
         run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
-      - name: Set up JDK
+      - name: Set Up JDK
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Cache Gradle and build outputs
+      - name: Cache Gradle And Build Outputs
         uses: actions/cache@v3
         with:
           path: |
@@ -62,18 +64,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Increase Gradle memory
+      - name: Increase Gradle Memory
         working-directory: ${{ env.ANDROID_DIR }}
         run: |
           printf "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g\n" >> gradle.properties
 
-      - name: Make gradlew executable
+      - name: Make Gradlew Executable
         working-directory: ${{ env.ANDROID_DIR }}
         run: |
           if [ ! -f "gradlew" ]; then gradle wrapper; fi
           chmod +x gradlew
 
-      - name: Set Gradle memory (support existing/missing config)
+      - name: Set Gradle memory(support existing/missing config)
         run: |
           if grep -q "^org.gradle.jvmargs=" gradle.properties; then
             # 存在则替换原有配置
@@ -92,7 +94,7 @@ jobs:
           build_type=${{ matrix.build_type }}
           ./gradlew assemble${build_type^}
 
-      - name: Show apk paths
+      - name: Show APK Path
         run: |
             echo ">>${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}:"
             ls -la ${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}
