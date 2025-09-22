@@ -8,7 +8,7 @@ TAG_NAME=v1.0.1
 BRANCH=main
 
 # 是否为预发布版本（可选，默认false）
-PRERELEASE=true
+# PRERELEASE=true
 
 # 发布说明（必填，从NOTES=开始到文件结束，支持markdown格式）
 NOTES=
