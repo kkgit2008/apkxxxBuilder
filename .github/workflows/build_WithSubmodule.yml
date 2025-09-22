@@ -14,7 +14,7 @@
 
 
 
-name: Build with submodule
+name: Build With Submodule
 
 on:
   push:
@@ -50,7 +50,7 @@ jobs:
         build_type: ['debug']
 
     steps:
-      - name: Cancel previous runs
+      - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
         with:
           access_token: ${{ github.token }}
@@ -65,7 +65,7 @@ jobs:
 #          submodules: true
 
       ### 检出依赖仓库 (username/repo2@branch2)
-      - name: Checkout sub Repository
+      - name: Checkout Sub Repository
         uses: actions/checkout@v4
         with:
           repository: ${{ env.DEPENDENCY_NAME }}
@@ -95,7 +95,7 @@ jobs:
           echo ">>目录结构验证通过"
 
       ### 设置JDK环境
-      - name: set up JDK
+      - name: Set Up JDK
         uses: actions/setup-java@v4
         with:
           java-version: '17'
@@ -111,7 +111,7 @@ jobs:
           key: ${{ runner.os }}-android-sdk-${{ hashFiles('** /build.gradle') }}
 
       ### 缓存构建输出
-      - name: Cache build
+      - name: Cache Build
         uses: actions/cache@v3
         with:
           path: |
@@ -119,11 +119,11 @@ jobs:
           key: ${{ runner.os }}-build-outputs-${{ github.sha }}
 
       ### 准备构建环境
-      - name: Grant execute permission for gradlew
+      - name: Grant Execute Permission For Gradlew
         working-directory: ${{ env.MAIN_REPO_DIR }}
         run: chmod +x gradlew
 
-      - name: Set Gradle memory (support existing/missing config)
+      - name: Set Gradle Memory(support existing/missing config)
         run: |
           if grep -q "^org.gradle.jvmargs=" gradle.properties; then
             ### 存在则替换原有配置
@@ -137,14 +137,14 @@ jobs:
           cat gradle.properties
 
       ### 构建APK
-      - name: Build APK for ${{ matrix.build_type }}
+      - name: Build APK For ${{ matrix.build_type }}
         working-directory: ${{ env.MAIN_REPO_DIR }}
         run: |
           build_type=${{ matrix.build_type }}
           # flavor_type=${{ matrix.flavor_type }}
           ./gradlew assemble${build_type^}
 
-      - name: Generate SHA256 checksums
+      - name: Generate SHA256 Checksums
         working-directory: ${{ env.MAIN_REPO_DIR }}
         run: |
           find ${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk -name '*.apk' | while read apk; do
@@ -152,7 +152,7 @@ jobs:
           done
 
       ### 显示目录结构
-      - name: Show project paths
+      - name: Show Project Path
         run: |
             echo ">>project root:"
             ls -la ${{ env.MAIN_REPO_DIR }}/
@@ -166,7 +166,7 @@ jobs:
             cd ${{ env.MAIN_REPO_DIR }}/app/build/outputs && find -name *.apk
 
       ### 使用当前时间作为版本
-      - name: Set release TAG_VERSION_NAME
+      - name: Set Release TAG_VERSION_NAME
         id: get_version_info
         run: |
           ### 获取当前时间，格式为YYMMDD.HH（年-月-日-时-分）
