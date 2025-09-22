@@ -2,7 +2,7 @@
 
 
 
-name: Build and Release APK
+name: Build And Release APK
 
 on:
   push:
@@ -19,32 +19,33 @@ env:
   BUILD_JAVA_DIST: 'adopt'
 
   APK_OUTPUT_PATH: ./app/build/outputs/apk/release
-  APK_OUTPUT_FILE1: app-release-unsigned.apk
+  APK_OUTPUT_FILE: app-release-unsigned.apk
+  # APK_OUTPUT_FILE: app-release.apk
   ARTIFACT_DIR: ./release-artifacts
   INFO_FILE: ./RELEASE_INFO
 
 jobs:
   validate-and-release:
-    name: Validate and create release
+    name: Validate And Create Release
     runs-on: ubuntu-latest
     steps:
-      - name: Cancel previous runs
+      - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
         with:
           access_token: ${{ github.token }}
 
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
           fetch-depth: 0
 
       ### 提前获取short_sha，用于替换RELEASE_INFO中的占位符
-      - name: Set short SHA
+      - name: Set Short SHA
         id: set_sha
         run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
-      - name: Read and process release information
+      - name: Read And Process Release Information
         id: release_info
         run: |
           ### 验证RELEASE_INFO文件存在
@@ -113,7 +114,7 @@ jobs:
           ### 清理临时文件
           rm -f $TEMP_FILE
 
-      - name: Check current branch matches target branch
+      - name: Check Current Branch Matches Target Branch
         run: |
           CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
           echo "Current branch: $CURRENT_BRANCH"
@@ -124,7 +125,7 @@ jobs:
             exit 1
           fi
 
-      - name: Check if tag exists
+      - name: Check If Tag Exists
         id: check_tag
         run: |
           TAG="${{ steps.release_info.outputs.tag_name }}"
@@ -137,7 +138,7 @@ jobs:
           fi
 
       ### 先创建并推送标签（仅当标签不存在时执行）
-      - name: Create and push tag
+      - name: Create And Push Tag
         if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
         run: |
           TAG="${{ steps.release_info.outputs.tag_name }}"
@@ -154,7 +155,7 @@ jobs:
       ### 以下步骤添加了条件判断，只有当tag不存在时才执行
 
 
-      - name: Set up JDK
+      - name: Set Up JDK
         if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
         uses: actions/setup-java@v4
         with:
@@ -162,11 +163,11 @@ jobs:
           distribution: ${{ env.BUILD_JAVA_DIST }}
           cache: 'gradle'
 
-      - name: Make gradlew executable
+      - name: Make Gradlew Executable
         if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
         run: chmod +x ./gradlew
 
-      - name: Restore Gradle cache
+      - name: Restore Gradle Cache
         if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
         uses: actions/cache@v4
         with:
@@ -177,12 +178,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-#      - name: Run code quality checks
+#      - name: Run Code Quality Checks
 #        if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
 #        run: ./gradlew lintRelease
 #        continue-on-error: true
 #
-#      - name: Run tests
+#      - name: Run Tests
 #        if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
 #        run: ./gradlew testReleaseUnitTest
 #        continue-on-error: true
@@ -192,27 +193,27 @@ jobs:
         run: ./gradlew :app:assembleRelease
         continue-on-error: false
 
-      - name: Show APK paths
+      - name: Show APK Path
         if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
         run: |
             echo ">>APK:"
             ls -la ${{ env.APK_OUTPUT_PATH }}
 
-      - name: Verify APK exists
+      - name: Verify APK Exists
         if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
         run: |
-          if [ ! -f "${{ env.APK_OUTPUT_PATH }}/${{ env.APK_OUTPUT_FILE1 }}" ]; then
-            echo ">>APK file not found at ${{ env.APK_OUTPUT_PATH }}/${{ env.APK_OUTPUT_FILE1 }}"
+          if [ ! -f "${{ env.APK_OUTPUT_PATH }}/${{ env.APK_OUTPUT_FILE }}" ]; then
+            echo ">>APK file not found at ${{ env.APK_OUTPUT_PATH }}/${{ env.APK_OUTPUT_FILE }}"
             exit 1
           fi
-          echo ">>APK size: $(du -h ${{ env.APK_OUTPUT_PATH }}/${{ env.APK_OUTPUT_FILE1 }})"
+          echo ">>APK size: $(du -h ${{ env.APK_OUTPUT_PATH }}/${{ env.APK_OUTPUT_FILE }})"
 
-      - name: Prepare release artifacts
+      - name: Prepare Release Artifacts
         if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
         run: |
           mkdir -p ${{ env.ARTIFACT_DIR }}
-          cp ${{ env.APK_OUTPUT_PATH }}/${{ env.APK_OUTPUT_FILE1 }} ${{ env.ARTIFACT_DIR }}/${{ steps.set_sha.outputs.short_sha }}-${{ env.APK_OUTPUT_FILE1 }}
-          sha256sum ${{ env.ARTIFACT_DIR }}/${{ steps.set_sha.outputs.short_sha }}-${{ env.APK_OUTPUT_FILE1 }} > ${{ env.ARTIFACT_DIR }}/${{ steps.set_sha.outputs.short_sha }}-${{ env.APK_OUTPUT_FILE1 }}.sha256
+          cp ${{ env.APK_OUTPUT_PATH }}/${{ env.APK_OUTPUT_FILE }} ${{ env.ARTIFACT_DIR }}/${{ steps.set_sha.outputs.short_sha }}-${{ env.APK_OUTPUT_FILE }}
+          sha256sum ${{ env.ARTIFACT_DIR }}/${{ steps.set_sha.outputs.short_sha }}-${{ env.APK_OUTPUT_FILE }} > ${{ env.ARTIFACT_DIR }}/${{ steps.set_sha.outputs.short_sha }}-${{ env.APK_OUTPUT_FILE }}.sha256
           ls -la ${{ env.ARTIFACT_DIR }}
 
       - name: Create GitHub Release
