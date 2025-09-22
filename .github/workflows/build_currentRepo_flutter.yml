@@ -1,6 +1,6 @@
 ### TIME:250916
 
-name: Build with flutter
+name: Build With Flutter
 
 ### To build from subfolder,just modify the 'ANDROID_DIR'
 
@@ -33,15 +33,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      - name: Cancel previous runs
+      - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
         with:
           access_token: ${{ github.token }}
 
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up Flutter
+      - name: Set Up Flutter
       ### 设置 Flutter 环境
         uses: subosito/flutter-action@v2
         with:
@@ -52,8 +52,9 @@ jobs:
 ### flutter-DART版本对应关系: https://blog.csdn.net/zhukui66/article/details/133300093
 
 
+
 #      ### 调试 - 彻底清理并初始化
-#      - name: Reset project
+#      - name: Reset Project
 #        ### 确保在项目根目录执行
 #        working-directory: .
 #        run: |
@@ -70,7 +71,7 @@ jobs:
           cat local.properties
           ### 打印文件内容
 
-      - name: Set up JDK
+      - name: Set Up JDK
         uses: actions/setup-java@v4
         with:
           java-version: '17'
@@ -84,18 +85,18 @@ jobs:
             ~/.gradle/wrapper
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', '**/build.gradle') }}
 
-      - name: Increase Gradle memory
+      - name: Increase Gradle Memory
         working-directory: ${{ env.ANDROID_DIR }}
         run: |
           printf "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g\n" >> gradle.properties
 
-      - name: Make gradlew executable
+      - name: Make Gradlew Executable
         working-directory: ${{ env.ANDROID_DIR }}
         run: |
           if [ ! -f "gradlew" ]; then gradle wrapper; fi
           chmod +x gradlew
 
-      - name: Set Gradle memory (support existing/missing config)
+      - name: Set Gradle Memory(support existing/missing config)
         run: |
           if grep -q "^org.gradle.jvmargs=" gradle.properties; then
             ### 存在则替换原有配置
@@ -108,7 +109,7 @@ jobs:
           echo "=== Modified gradle.properties content ==="
           cat gradle.properties
 
-      - name: Setup Flutter plugins
+      - name: Setup Flutter Plugins
         run: |
           ### 获取所有依赖项并生成'.dart_tool/package_config.json'文件
           flutter pub get || exit 1
@@ -132,7 +133,7 @@ jobs:
           build_type=${{ matrix.build_type }}
           ./gradlew assemble${build_type^}
 
-      - name: Show APK paths
+      - name: Show APK Path
         run: |
             echo ">>./build/app/outputs/flutter-apk:"
             ls -la ./build/app/outputs/flutter-apk
