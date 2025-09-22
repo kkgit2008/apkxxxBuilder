@@ -35,15 +35,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-      - name: Cancel previous runs
+      - name: Cancel Previous Runs
         uses: styfle/cancel-workflow-action@0.12.1
         with:
           access_token: ${{ github.token }}
 
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set short SHA
+      - name: Set Short SHA
         id: set_sha
         run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
@@ -57,7 +57,7 @@ jobs:
 
 
       ### 自动接受所有Android许可证（含Preview）并安装NDK（仅当缓存未命中时）
-      - name: Accept Android licenses and install NDK
+      - name: Accept Android licenses And Install NDK
         if: steps.cache-ndk.outputs.cache-hit != 'true'
         run: |
           ### 安装交互式应答工具expect
@@ -94,23 +94,23 @@ jobs:
         shell: bash
 
 
-      - name: Set up JDK
+      - name: Set Up JDK
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Setup Android SDK with cmake
+      - name: Setup Android SDK With Cmake
         uses: android-actions/setup-android@v3
         with:
           components: 'cmake;${{ env.CMAKE_VERSION }}'
 
-      - name: Install cmake
+      - name: Install Cmake
         uses: jwlawson/actions-setup-cmake@v2
         with:
           cmake-version: '${{ env.CMAKE_VERSION }}'
 
-      - name: Cache gradle and build outputs
+      - name: Cache Gradle And Build Outputs
         uses: actions/cache@v3
         with:
           path: |
@@ -122,18 +122,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Increase gradle memory
+      - name: Increase Gradle Memory
         working-directory: ${{ env.ANDROID_DIR }}
         run: |
           printf "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g\n" >> gradle.properties
 
-      - name: Make gradlew executable
+      - name: Make Gradlew Executable
         working-directory: ${{ env.ANDROID_DIR }}
         run: |
           if [ ! -f "gradlew" ]; then gradle wrapper; fi
           chmod +x gradlew
 
-      - name: Set gradle memory ### support existing/missing config
+      - name: Set Gradle Memory(support existing/missing config)
         run: |
           if grep -q "^org.gradle.jvmargs=" gradle.properties; then
             ### 存在则替换原有配置
@@ -152,7 +152,7 @@ jobs:
           build_type=${{ matrix.build_type }}
           ./gradlew assemble${build_type^}
 
-      - name: Show APK paths
+      - name: Show APK Path
         run: |
             echo ">>${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}:"
             ls -la ${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}
