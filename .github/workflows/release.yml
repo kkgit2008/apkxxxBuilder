@@ -9,7 +9,6 @@ on:
     branches: [ main, master ]
     paths:
       ### 只在RELEASE_INFO文件变更时触发
-      ### 文件内容可参考apkxxxAndroIDE仓库
       - 'RELEASE_INFO'
   workflow_dispatch: {}
   ### 允许手动触发
