@@ -7,9 +7,11 @@ on:
         description: 'Branch to delete'
         required: true
         default: 'kkgit2008-patch-1'
+      tip1:
         description: 'Tip 1'
         required: false
         default: 'DO NOT delete the default branch!'
+      tip2:
         description: 'Tip 2'
         required: false
         default: 'Run on default branch, DO NOT change!'
