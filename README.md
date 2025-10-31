@@ -17,6 +17,8 @@
 
 * 4.可将其他仓库作为子模块 <a href=".github/workflows/build_WithSubmodule.yml">file</a>
 
+* 5.可通过工作流删除任意分支 <a href=".github/workflows/delete_branch.yml">file</a>
+
 
 
 # 🔥🔥<a href="./project-to-build">project-to-build</a>使用方法：  
