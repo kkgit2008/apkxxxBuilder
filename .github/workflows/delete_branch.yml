@@ -1,0 +1,46 @@
+name: Delete Any Branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch_to_delete:
+        description: 'Branch to delete'
+        required: true
+        default: 'kkgit2008-patch-1'
+        description: 'Tip 1'
+        required: false
+        default: 'DO NOT delete the default branch!'
+        description: 'Tip 2'
+        required: false
+        default: 'Run on default branch, DO NOT change!'
+
+jobs:
+  delete:
+    timeout-minutes: 5  # Force timeout after this
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code（To Get The Default Branch Name）
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Get The Default Branch Name
+        id: default
+        run: echo "branch=$(gh api repos/${{ github.repository }} --jq .default_branch)" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: To Forbid Deleting The Default Branch
+        run: |
+          if [ "${{ inputs.branch_to_delete }}" == "${{ steps.default.outputs.branch }}" ]; then
+            echo "❌ Can Not Delete The Default Branch!"
+            exit 1
+          fi
+
+      - name: Delete Branch
+        run: |
+          git push origin --delete ${{ inputs.branch_to_delete }}
+
