@@ -4,7 +4,7 @@
 
 
 
-### 更简单的方案是在项目根目录添加 .gitmodules 文件，内容（参考AndroidIDE仓库):
+### 更简单的方案是在项目根目录添加 .gitmodules 文件(文件内容可参考AndroidIDE仓库):
 
 ### [submodule "composite-builds/external/logback-android"]
 ### 	path = composite-builds/external/logback-android
