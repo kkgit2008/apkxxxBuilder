@@ -25,6 +25,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: 17
+          distribution: 'temurin'
           
       - id: get-project
         name: Get Project Name
