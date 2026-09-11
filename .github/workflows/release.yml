@@ -8,7 +8,7 @@ on:
   push:
     branches: [ main, master ]
     paths:
-      ### 只在RELEASE_INFO文件变更时触发
+      ### 只在 RELEASE_INFO 文件变更时触发
       - 'RELEASE_INFO'
   workflow_dispatch: {}
   ### 允许手动触发
@@ -18,11 +18,10 @@ permissions:
 
 env:
   BUILD_JAVA_VERSION: '17'
-  BUILD_JAVA_DIST: 'adopt'
+  BUILD_JAVA_DIST: 'temurin'   # 原 'adopt' 已废弃，改用 Eclipse Temurin
 
   APK_OUTPUT_PATH: ./app/build/outputs/apk/release
-  APK_OUTPUT_FILE: app-release-unsigned.apk
-  # APK_OUTPUT_FILE: app-release.apk
+  # 不再硬编码 APK 文件名，构建后用 find 动态定位
   ARTIFACT_DIR: ./release-artifacts
   INFO_FILE: ./RELEASE_INFO
 
@@ -42,15 +41,18 @@ jobs:
           submodules: 'recursive'
           fetch-depth: 0
 
-      ### 提前获取short_sha，用于替换RELEASE_INFO中的占位符
+      ### 提前获取 short_sha，用于替换 RELEASE_INFO 中的占位符
       - name: Set Short SHA
         id: set_sha
         run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
 
+      ### ---------------------------------------------------------------
+      ### 读取并解析 RELEASE_INFO
+      ### ---------------------------------------------------------------
       - name: Read And Process Release Information
         id: release_info
         run: |
-          ### 验证RELEASE_INFO文件存在
+          ### 验证 RELEASE_INFO 文件存在
           if [ ! -f "${{ env.INFO_FILE }}" ]; then
             echo "RELEASE_INFO file not found!"
             exit 1
@@ -58,19 +60,21 @@ jobs:
 
           ### 临时文件用于存储处理后的内容
           TEMP_FILE=$(mktemp)
-          
-          ### 替换文件中所有的shortSHA为实际的short_sha
+
+          ### 替换文件中所有的 shortSHA 为实际的 short_sha
           sed "s/shortSHA/${{ steps.set_sha.outputs.short_sha }}/g" ${{ env.INFO_FILE }} > $TEMP_FILE
 
-          ### 提取版本号
+          ### 提取 TAG_NAME
           TAG_NAME=$(grep '^TAG_NAME=' $TEMP_FILE | cut -d'=' -f2- | tr -d '[:space:]')
           if [ -z "$TAG_NAME" ]; then
             echo "TAG_NAME not specified in RELEASE_INFO"
             exit 1
           fi
 
-          ### 提取标题
+          ### 【修复】先尝试从 RELEASE_INFO 中提取 TITLE
+          TITLE=$(grep '^TITLE=' $TEMP_FILE | cut -d'=' -f2-)
           if [ -z "$TITLE" ]; then
+            ### 缺省标题：TAG_NAME + short_sha
             TITLE="${TAG_NAME} ${{ steps.set_sha.outputs.short_sha }}"
           else
             ### 去除首尾空格
@@ -84,20 +88,20 @@ jobs:
             exit 1
           fi
 
-          ### 提取预发布标记（默认false）
+          ### 提取预发布标记（默认 false）
           PRERELEASE=$(grep '^PRERELEASE=' $TEMP_FILE | cut -d'=' -f2- | tr -d '[:space:]')
           if [ -z "$PRERELEASE" ]; then
             PRERELEASE="false"
           fi
 
-          ### 提取版本说明（从NOTES=开始到文件结束）
+          ### 提取版本说明（从 NOTES= 开始到文件结束）
           NOTES=$(awk 'BEGIN {found=0} /^NOTES=/{found=1; sub(/^NOTES=/, ""); print; next} found' $TEMP_FILE)
           if [ -z "$NOTES" ]; then
             echo "NOTES not specified in RELEASE_INFO"
             exit 1
           fi
 
-          ### 输出到GitHub环境变量
+          ### 输出到 GitHub 环境变量
           echo "tag_name=$TAG_NAME" >> $GITHUB_OUTPUT
           echo "title=$TITLE" >> $GITHUB_OUTPUT
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
@@ -112,21 +116,27 @@ jobs:
           echo "Target branch: $BRANCH"
           echo "Pre-release: $PRERELEASE"
           echo "Notes length: $(echo -n "$NOTES" | wc -c) characters"
-          
+
           ### 清理临时文件
           rm -f $TEMP_FILE
 
+      ### ---------------------------------------------------------------
+      ### 校验当前分支
+      ### ---------------------------------------------------------------
       - name: Check Current Branch Matches Target Branch
         run: |
           CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
           echo "Current branch: $CURRENT_BRANCH"
           echo "Target branch: ${{ steps.release_info.outputs.branch }}"
-          
+
           if [ "$CURRENT_BRANCH" != "${{ steps.release_info.outputs.branch }}" ]; then
             echo "This release is configured for branch '${{ steps.release_info.outputs.branch }}' but current branch is '$CURRENT_BRANCH'"
             exit 1
           fi
 
+      ### ---------------------------------------------------------------
+      ### 检查 Tag / Release 是否已存在
+      ### ---------------------------------------------------------------
       - name: Check If Tag Exists
         id: check_tag
         run: |
@@ -139,9 +149,85 @@ jobs:
             echo "Tag $TAG will be created"
           fi
 
-      ### 先创建并推送标签（仅当标签不存在时执行）
+      - name: Check If Release Exists
+        id: check_release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.release_info.outputs.tag_name }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "release_exists=true" >> $GITHUB_OUTPUT
+            echo "Release for $TAG already exists"
+          else
+            echo "release_exists=false" >> $GITHUB_OUTPUT
+            echo "Release for $TAG does not exist"
+          fi
+
+      ### ===============================================================
+      ### 以下所有构建 / 发布步骤，只在 Release 尚未存在时执行
+      ### ===============================================================
+
+      - name: Set Up JDK
+        if: ${{ steps.check_release.outputs.release_exists == 'false' }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.BUILD_JAVA_VERSION }}
+          distribution: ${{ env.BUILD_JAVA_DIST }}
+          cache: 'gradle'   # setup-java 已自带 Gradle 缓存，无需额外 actions/cache
+
+      - name: Make Gradlew Executable
+        if: ${{ steps.check_release.outputs.release_exists == 'false' }}
+        run: chmod +x ./gradlew
+
+      # 已移除冗余的 actions/cache（与 setup-java 的 cache: 'gradle' 重复）
+
+      # - name: Run Code Quality Checks
+      #   if: ${{ steps.check_release.outputs.release_exists == 'false' }}
+      #   run: ./gradlew lintRelease
+      #   continue-on-error: true
+
+      - name: Run Tests
+        if: ${{ steps.check_release.outputs.release_exists == 'false' }}
+        run: ./gradlew testReleaseUnitTest
+        continue-on-error: false   # 如需允许测试失败继续，请改为 true
+
+      - name: Build Release APK
+        if: ${{ steps.check_release.outputs.release_exists == 'false' }}
+        run: ./gradlew :app:assembleRelease
+        continue-on-error: false
+
+      ### 【修复】动态定位 APK（不依赖任何文件名假设）
+      - name: Locate APK
+        id: locate_apk
+        if: ${{ steps.check_release.outputs.release_exists == 'false' }}
+        run: |
+          echo ">>Contents of ${{ env.APK_OUTPUT_PATH }}:"
+          ls -la ${{ env.APK_OUTPUT_PATH }} || true
+
+          APK_FILE=$(find ${{ env.APK_OUTPUT_PATH }} -maxdepth 1 -name '*.apk' -type f | head -n 1)
+          if [ -z "$APK_FILE" ]; then
+            echo ">>No APK found in ${{ env.APK_OUTPUT_PATH }}"
+            exit 1
+          fi
+
+          echo "apk_path=$APK_FILE" >> $GITHUB_OUTPUT
+          echo "apk_name=$(basename $APK_FILE)" >> $GITHUB_OUTPUT
+          echo ">>APK: $APK_FILE"
+          echo ">>APK size: $(du -h $APK_FILE | cut -f1)"
+
+      - name: Prepare Release Artifacts
+        if: ${{ steps.check_release.outputs.release_exists == 'false' }}
+        run: |
+          mkdir -p ${{ env.ARTIFACT_DIR }}
+          OUT_NAME="${{ steps.set_sha.outputs.short_sha }}-${{ steps.locate_apk.outputs.apk_name }}"
+          cp "${{ steps.locate_apk.outputs.apk_path }}" "${{ env.ARTIFACT_DIR }}/$OUT_NAME"
+          sha256sum "${{ env.ARTIFACT_DIR }}/$OUT_NAME" > "${{ env.ARTIFACT_DIR }}/$OUT_NAME.sha256"
+          echo ">>Release artifacts:"
+          ls -la ${{ env.ARTIFACT_DIR }}
+
+      ### 【修复】构建成功之后再创建并推送标签
       - name: Create And Push Tag
-        if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
+        if: ${{ steps.check_release.outputs.release_exists == 'false' && steps.check_tag.outputs.tag_exists == 'false' }}
         run: |
           TAG="${{ steps.release_info.outputs.tag_name }}"
           git config --global user.email "actions@github.com"
@@ -149,78 +235,13 @@ jobs:
           git tag -a $TAG -m "${{ steps.release_info.outputs.title }}"
           git push origin $TAG
           echo "Created and pushed tag: $TAG"
-          
+
           ### 刷新本地标签信息，确保后续步骤能看到新创建的标签
           git fetch --tags
 
-
-      ### 以下步骤添加了条件判断，只有当tag不存在时才执行
-
-
-      - name: Set Up JDK
-        if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.BUILD_JAVA_VERSION }}
-          distribution: ${{ env.BUILD_JAVA_DIST }}
-          cache: 'gradle'
-
-      - name: Make Gradlew Executable
-        if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
-        run: chmod +x ./gradlew
-
-      - name: Restore Gradle Cache
-        if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-#      - name: Run Code Quality Checks
-#        if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
-#        run: ./gradlew lintRelease
-#        continue-on-error: true
-#
-#      - name: Run Tests
-#        if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
-#        run: ./gradlew testReleaseUnitTest
-#        continue-on-error: true
-
-      - name: Build Release APK
-        if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
-        run: ./gradlew :app:assembleRelease
-        continue-on-error: false
-
-      - name: Show APK Path
-        if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
-        run: |
-            echo ">>APK:"
-            ls -la ${{ env.APK_OUTPUT_PATH }}
-
-      - name: Verify APK Exists
-        if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
-        run: |
-          if [ ! -f "${{ env.APK_OUTPUT_PATH }}/${{ env.APK_OUTPUT_FILE }}" ]; then
-            echo ">>APK file not found at ${{ env.APK_OUTPUT_PATH }}/${{ env.APK_OUTPUT_FILE }}"
-            exit 1
-          fi
-          echo ">>APK size: $(du -h ${{ env.APK_OUTPUT_PATH }}/${{ env.APK_OUTPUT_FILE }})"
-
-      - name: Prepare Release Artifacts
-        if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
-        run: |
-          mkdir -p ${{ env.ARTIFACT_DIR }}
-          cp ${{ env.APK_OUTPUT_PATH }}/${{ env.APK_OUTPUT_FILE }} ${{ env.ARTIFACT_DIR }}/${{ steps.set_sha.outputs.short_sha }}-${{ env.APK_OUTPUT_FILE }}
-          sha256sum ${{ env.ARTIFACT_DIR }}/${{ steps.set_sha.outputs.short_sha }}-${{ env.APK_OUTPUT_FILE }} > ${{ env.ARTIFACT_DIR }}/${{ steps.set_sha.outputs.short_sha }}-${{ env.APK_OUTPUT_FILE }}.sha256
-          ls -la ${{ env.ARTIFACT_DIR }}
-
       - name: Create GitHub Release
-        if: ${{ steps.check_tag.outputs.tag_exists == 'false' }}
-        uses: softprops/action-gh-release@v1
+        if: ${{ steps.check_release.outputs.release_exists == 'false' }}
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: "${{ steps.release_info.outputs.tag_name }}"
           name: ${{ steps.release_info.outputs.title }}
@@ -230,7 +251,7 @@ jobs:
           draft: false
           ### 是否设置为预发布版本
           prerelease: ${{ steps.release_info.outputs.prerelease }}
-          ### 只有非预发布版本才设置为latest
+          ### 只有非预发布版本才设置为 latest
           make_latest: ${{ steps.release_info.outputs.prerelease == 'false' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
