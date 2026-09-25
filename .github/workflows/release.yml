@@ -15,7 +15,7 @@ on:
           - 'Only allowed to run on the default branch!'
         default: 'Only allowed to run on the default branch!'
       version:
-        description: 'Release version (e.g. 1.0.3)'
+        description: 'Release version (e.g. 1.0.0)'
         required: true
         type: string
       prerelease:
@@ -103,6 +103,12 @@ jobs:
             echo "release_exists=false" >> $GITHUB_OUTPUT
             echo "Release for $TAG does not exist"
           fi
+
+
+      ### ===============================================================
+      ### 以下所有构建 / 发布步骤，只在 Release 尚未存在时执行
+      ### ===============================================================
+
 
       - name: Set Up JDK
         if: ${{ steps.check_release.outputs.release_exists == 'false' }}
