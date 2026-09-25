@@ -3,6 +3,13 @@ name: Build And Release APK
 on:
   workflow_dispatch:
     inputs:
+      notice:
+        description: 'Notice'
+        required: false
+        type: choice
+        options:
+          - 'Only allowed to run on the default branch!'
+        default: 'Only allowed to run on the default branch!'
       version:
         description: 'Release version (e.g. 1.0.3)'
         required: true
