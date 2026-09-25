@@ -129,7 +129,7 @@ jobs:
       - name: Locate APK
         id: locate_apk
         if: ${{ steps.check_release.outputs.release_exists == 'false' }}
-        run: >
+        run: |
           echo ">>Contents of ${{ env.APK_OUTPUT_PATH }}:"
           ls -la ${{ env.APK_OUTPUT_PATH }} || true
           APK_LIST=$(find ${{ env.APK_OUTPUT_PATH }} -maxdepth 1 -name '*.apk'
@@ -149,7 +149,7 @@ jobs:
 
       - name: Prepare Release Artifacts
         if: ${{ steps.check_release.outputs.release_exists == 'false' }}
-        run: >
+        run: |
           mkdir -p ${{ env.ARTIFACT_DIR }}
           SHORT_SHA="${{ steps.set_sha.outputs.short_sha }}"
           echo "${{ steps.locate_apk.outputs.apk_list }}" | while IFS= read -r
