@@ -134,7 +134,7 @@ jobs:
           ls -la ${{ env.APK_OUTPUT_PATH }} || true
 
           #APK_FILE=$(find ${{ env.APK_OUTPUT_PATH }} -maxdepth 1 -name '*.apk' -type f | head -n 1)
-          #APK_FILE=$(find ${{ env.APK_OUTPUT_PATH }} -maxdepth 1 -name '*.apk' -type f | sort | head -n 1)
+          APK_FILE=$(find ${{ env.APK_OUTPUT_PATH }} -maxdepth 1 -name '*.apk' -type f | sort | head -n 1)
           if [ -z "$APK_FILE" ]; then
             echo ">>No APK found in ${{ env.APK_OUTPUT_PATH }}"
             exit 1
