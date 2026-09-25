@@ -132,8 +132,7 @@ jobs:
         run: |
           echo ">>Contents of ${{ env.APK_OUTPUT_PATH }}:"
           ls -la ${{ env.APK_OUTPUT_PATH }} || true
-          APK_LIST=$(find ${{ env.APK_OUTPUT_PATH }} -maxdepth 1 -name '*.apk'
-          -type f | sort)
+          APK_LIST=$(find ${{ env.APK_OUTPUT_PATH }} -maxdepth 1 -name '*.apk' -type f | sort)
           APK_COUNT=$(echo "$APK_LIST" | grep -c '\.apk$' || true)
           if [ -z "$APK_LIST" ] || [ "$APK_COUNT" -eq 0 ]; then
             echo ">>No APK found in ${{ env.APK_OUTPUT_PATH }}"
@@ -152,8 +151,7 @@ jobs:
         run: |
           mkdir -p ${{ env.ARTIFACT_DIR }}
           SHORT_SHA="${{ steps.set_sha.outputs.short_sha }}"
-          echo "${{ steps.locate_apk.outputs.apk_list }}" | while IFS= read -r
-          APK; do
+          echo "${{ steps.locate_apk.outputs.apk_list }}" | while IFS= read -r APK; do
             [ -z "$APK" ] && continue
             OUT_NAME="${SHORT_SHA}-$(basename "$APK")"
             cp "$APK" "${{ env.ARTIFACT_DIR }}/$OUT_NAME"
