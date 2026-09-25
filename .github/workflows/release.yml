@@ -69,16 +69,6 @@ jobs:
           echo "Target branch: $BRANCH"
           echo "Pre-release: $PRERELEASE"
 
-      - name: Check Current Branch Matches Target Branch
-        run: |
-          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-          echo "Current branch: $CURRENT_BRANCH"
-          echo "Target branch: ${{ steps.release_info.outputs.branch }}"
-          if [ "$CURRENT_BRANCH" != "${{ steps.release_info.outputs.branch }}" ]; then
-            echo "This release is configured for branch '${{ steps.release_info.outputs.branch }}' but current branch is '$CURRENT_BRANCH'"
-            exit 1
-          fi
-
       - name: Check If Tag Exists
         id: check_tag
         run: |
