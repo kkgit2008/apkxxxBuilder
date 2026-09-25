@@ -19,6 +19,11 @@ on:
         required: false
         type: boolean
         default: false
+      draft:
+        description: 'Create as draft release'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -164,8 +169,8 @@ jobs:
           name: ${{ steps.release_info.outputs.title }}
           generate_release_notes: true
           files: ${{ env.ARTIFACT_DIR }}/*
-          draft: false
+          draft: ${{ inputs.draft }}
           prerelease: ${{ steps.release_info.outputs.prerelease }}
-          make_latest: ${{ steps.release_info.outputs.prerelease == 'false' }}
+          make_latest: ${{ !inputs.draft && steps.release_info.outputs.prerelease == 'false' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
