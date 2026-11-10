@@ -17,9 +17,9 @@ updates:
     commit-message:
       prefix: "ci"
       ### 提交消息前缀，标识为 CI 配置更新
-    labels:
-      - "dependencies"
-      - "github-actions"
+    #labels: 需要时再开启
+      #- "dependencies"
+      #- "github-actions"
       ### 自定义标签便于分类
     open-pull-requests-limit: 5
     ### 限制同时打开的 PR 数量
