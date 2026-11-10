@@ -51,13 +51,13 @@ jobs:
 
     steps:
       - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
+        uses: styfle/cancel-workflow-action@0.13.1
         with:
           access_token: ${{ github.token }}
 
       ### 检出主仓库 (username/repo@branch)
       - name: Checkout Main Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ env.MAIN_NAME }}
           ref: ${{ env.MAIN_REPO_BRANCH }}
@@ -66,7 +66,7 @@ jobs:
 
       ### 检出依赖仓库 (username/repo2@branch2)
       - name: Checkout Sub Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: ${{ env.DEPENDENCY_NAME }}
           ref: ${{ env.DEPENDENCY_REPO_BRANCH }}
@@ -96,7 +96,7 @@ jobs:
 
       ### 设置JDK环境
       - name: Set Up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -104,7 +104,7 @@ jobs:
 
       ### 缓存 SDK
       - name: Cache Android SDK
-        uses: actions/cache@v3
+        uses: actions/cache@v6
         with:
           path: |
             ~/Android/Sdk
@@ -112,7 +112,7 @@ jobs:
 
       ### 缓存构建输出
       - name: Cache Build
-        uses: actions/cache@v3
+        uses: actions/cache@v6
         with:
           path: |
             ${{ env.MAIN_REPO_DIR }}/app/build
@@ -176,7 +176,7 @@ jobs:
       
       ### 上传APK
       - name: Upload ${{ matrix.build_type }} APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: apk-${{ matrix.build_type }}
           path: |
@@ -187,7 +187,7 @@ jobs:
       - name: Publish Release
         if: startsWith(github.ref, 'refs/tags/')
         ### 有新tag时才发布
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           body_path: ${{ env.MAIN_REPO_DIR }}/changelog/${{ env.TAG_VERSION_NAME }}/README.md
           tag_name: ${{ env.TAG_VERSION_NAME }}
