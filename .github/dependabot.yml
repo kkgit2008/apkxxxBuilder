@@ -25,7 +25,7 @@ updates:
     ### 限制同时打开的 PR 数量
     #versioning-strategy: "increase"
     ### 直接升级到最新版本（已不支持此字段）
-    #ignore: #使用时再取消注释
+    #ignore: #需要时再开启
       ### 如需忽略特定 Action 或版本，可在此添加规则
       ### - dependency-name: "actions/checkout"
       ###   versions: ["v5.x"]
