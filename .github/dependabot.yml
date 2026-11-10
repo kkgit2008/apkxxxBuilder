@@ -23,11 +23,9 @@ updates:
       ### 自定义标签便于分类
     open-pull-requests-limit: 5
     ### 限制同时打开的 PR 数量
-    versioning-strategy: "increase"
-    ### 直接升级到最新版本
-    ignore:
+    #versioning-strategy: "increase"
+    ### 直接升级到最新版本（已不支持此字段）
+    #ignore: #使用时再取消注释
       ### 如需忽略特定 Action 或版本，可在此添加规则
       ### - dependency-name: "actions/checkout"
       ###   versions: ["v5.x"]
-
-      
