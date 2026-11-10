@@ -36,12 +36,12 @@ jobs:
     steps:
 
       - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.12.1
+        uses: styfle/cancel-workflow-action@0.13.1
         with:
           access_token: ${{ github.token }}
 
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set Short SHA
         id: set_sha
@@ -49,7 +49,7 @@ jobs:
 
       ### 缓存NDK安装目录
       - name: Cache NDK
-        uses: actions/cache@v3
+        uses: actions/cache@v6
         id: cache-ndk
         with:
           path: /usr/local/lib/android/sdk/ndk/${{ env.NDK_VERSION }}
@@ -95,13 +95,13 @@ jobs:
 
 
       - name: Set Up JDK
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v6
         with:
           java-version: '17'
           distribution: 'temurin'
 
       - name: Setup Android SDK With Cmake
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           components: 'cmake;${{ env.CMAKE_VERSION }}'
 
@@ -111,7 +111,7 @@ jobs:
           cmake-version: '${{ env.CMAKE_VERSION }}'
 
       - name: Cache Gradle And Build Outputs
-        uses: actions/cache@v3
+        uses: actions/cache@v6
         with:
           path: |
             ~/.gradle/caches
@@ -162,7 +162,7 @@ jobs:
 #          cp ${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk ./
 
       - name: Upload ${{ matrix.build_type }} APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: apk-${{ matrix.build_type }}-${{ steps.set_sha.outputs.short_sha }}
           path: ${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk
