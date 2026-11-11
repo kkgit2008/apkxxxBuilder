@@ -1,5 +1,5 @@
 
-### TIME:261111
+### TIME:261112
 
 
 
@@ -7,9 +7,9 @@ name: Build APK From Other Repo
 ### Need file 'project-to-build' in root folder.
 
 on:
-  pull_request:
+  #pull_request:
   ### 在 PR 时触发，用于验证（如 Dependabot 的 PR）
-    branches: [ "main","master" ]
+    #branches: [ "main","master" ]
     ### Start build only on these branches
 
   workflow_dispatch: { }
@@ -30,13 +30,6 @@ jobs:
       matrix:
         #abi_type: ['arm64-v8a', 'armeabi-v7a', 'x86_64']
         build_type: ['debug', 'release']
-
-    if: |
-      github.event_name == 'workflow_dispatch' || 
-      (github.event_name == 'pull_request' && matrix.build_type == 'debug')
-    ### 核心逻辑更新：
-    ### 1. 手动触发：全跑
-    ### 3. PR：只跑 Debug（快速验证，省钱）
 
     name: Build ${{ matrix.build_type }} APK
     runs-on: ubuntu-latest
