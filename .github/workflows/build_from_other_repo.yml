@@ -1,0 +1,113 @@
+
+### TIME:261111
+
+
+
+name: Build APK From Other Repo
+### Need file 'project-to-build' in root folder.
+
+on:
+  pull_request:
+  ### 在 PR 时触发，用于验证（如 Dependabot 的 PR）
+    branches: [ "main","master" ]
+    ### Start build only on these branches
+
+  workflow_dispatch: { }
+  ### Support manual build in 'Actions/workflow'
+
+env:
+  ANDROID_DIR: ./projectA
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  build_apk:
+    strategy:
+      fail-fast: false
+      ### debug失败不连带跳过release
+      matrix:
+        #abi_type: ['arm64-v8a', 'armeabi-v7a', 'x86_64']
+        build_type: ['debug', 'release']
+
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'pull_request' && matrix.build_type == 'debug')
+    ### 核心逻辑更新：
+    ### 1. 手动触发：全跑
+    ### 3. PR：只跑 Debug（快速验证，省钱）
+
+    name: Build ${{ matrix.build_type }} APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.13.1
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Set Short SHA
+        id: set_sha
+        run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      - name: Set Up JDK
+        uses: actions/setup-java@v6
+        with:
+          java-version: 17
+          distribution: 'temurin'
+
+      - id: get-project
+        name: Get Project Name
+        run: echo "PROJECT=$(cat project-to-build | tr -d '\r\n')" >> $GITHUB_OUTPUT
+        ### 清理可能存在的回车换行符
+
+      - name: Clone Project
+        run: git clone --depth=1 ${{ steps.get-project.outputs.PROJECT }} ${{ env.ANDROID_DIR }}
+        ### 把远程仓库克隆到ANDROID_DIR目录下
+
+      - name: Configure Gradle Memory
+        working-directory: ${{ env.ANDROID_DIR }}
+        run: |
+          if grep -q "^org.gradle.jvmargs=" gradle.properties; then
+            sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g/' gradle.properties
+            ### 存在则替换原有配置
+          else
+            echo -e "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
+            ### 不存在则在文件末尾安全新增（加换行避免拼接）
+          fi
+          echo "=== Modified gradle.properties content ==="
+          cat gradle.properties
+          ### 输出修改后的文件内容到日志
+
+      - name: Make Gradlew Executable
+        working-directory: ${{ env.ANDROID_DIR }}
+        run: |
+          chmod +x gradlew
+
+      - name: Build ${{ matrix.build_type }} APK
+        working-directory: ${{ env.ANDROID_DIR }}
+        run: |
+          build_type=${{ matrix.build_type }}
+          ./gradlew assemble${build_type^}
+
+      - name: Show APK Path
+        working-directory: ${{ env.ANDROID_DIR }}
+        run: |
+          apk_dir="./app/build/outputs/apk/${{ matrix.build_type }}"
+          echo ">>${apk_dir}:"
+          ls -la "${apk_dir}" || echo "(no APK outputs)"
+
+      - name: Upload ${{ matrix.build_type }} APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: apk-${{ matrix.build_type }}-${{ steps.set_sha.outputs.short_sha }}
+          path: ${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk
+          retention-days: 7
+          ### 设置保存天数，节省github存储配额，默认90
+          if-no-files-found: error
+          ### 找不到APK文件直接报错
