@@ -1,4 +1,5 @@
-### TIME:250915
+
+### TIME:261111
 
 
 
@@ -23,14 +24,18 @@ env:
   ### Build from 'android' folder (when 'app' folder is in 'project/android' folder), modify it as you need.
 
 permissions:
-  contents: write
+  contents: read
+  actions: write
 
 jobs:
   build_apk:
     strategy:
+      fail-fast: false     
+      ### debug失败不连带跳过release
       matrix:
+        #abi_type: ['arm64-v8a', 'armeabi-v7a', 'x86_64']
         build_type: ['debug', 'release']
-        # build_type: ['debug']
+
     name: Build APK
     runs-on: ubuntu-latest
     steps:
@@ -43,6 +48,14 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
 
+      ### 提前校验ANDROID_DIR目录存在，避免后续步骤在错误位置执行
+      - name: Validate ANDROID_DIR
+        run: |
+          if [ ! -d "${{ env.ANDROID_DIR }}" ]; then
+            echo "::error::ANDROID_DIR '${{ env.ANDROID_DIR }}' does not exist"
+            exit 1
+          fi
+
       - name: Set Short SHA
         id: set_sha
         run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
@@ -53,40 +66,35 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Cache Gradle And Build Outputs
+      - name: Cache Gradle Dependencies
         uses: actions/cache@v6
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-            ${{ env.ANDROID_DIR }}/app/build
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', '**/build.gradle', '**/CMakeLists.txt') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', '**/*.gradle', '**/*.gradle.kts', '**/gradle.properties', '**/libs.versions.toml') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
 
-      - name: Increase Gradle Memory
+      - name: Configure Gradle Memory
         working-directory: ${{ env.ANDROID_DIR }}
         run: |
-          printf "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g\n" >> gradle.properties
+          if grep -q "^org.gradle.jvmargs=" gradle.properties; then
+            ### 存在则替换原有配置
+            sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g/' gradle.properties
+          else
+            ### 不存在则在文件末尾安全新增（加换行避免拼接）
+            echo -e "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
+          fi
+          ### 输出修改后的文件内容到日志
+          echo "=== Modified gradle.properties content ==="
+          cat gradle.properties
 
       - name: Make Gradlew Executable
         working-directory: ${{ env.ANDROID_DIR }}
         run: |
           if [ ! -f "gradlew" ]; then gradle wrapper; fi
           chmod +x gradlew
-
-      - name: Set Gradle memory(support existing/missing config)
-        run: |
-          if grep -q "^org.gradle.jvmargs=" gradle.properties; then
-            # 存在则替换原有配置
-            sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g/' gradle.properties
-          else
-            # 不存在则在文件末尾安全新增（加换行避免拼接）
-            echo -e "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
-          fi
-          # 输出修改后的文件内容到日志
-          echo "=== Modified gradle.properties content ==="
-          cat gradle.properties
 
       - name: Build ${{ matrix.build_type }} APK
         working-directory: ${{ env.ANDROID_DIR }}
@@ -96,8 +104,9 @@ jobs:
 
       - name: Show APK Path
         run: |
-            echo ">>${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}:"
-            ls -la ${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}
+          apk_dir="${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}"
+          echo ">>${apk_dir}:"
+          ls -la "${apk_dir}" || echo "(no APK outputs)"
 
       - name: Upload ${{ matrix.build_type }} APK
         uses: actions/upload-artifact@v7
