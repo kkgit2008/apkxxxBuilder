@@ -1,6 +1,6 @@
 ### 此文件用于自动更新工作流版本
 
-version: 2
+version: 3
 
 updates:
   - package-ecosystem: "github-actions"
