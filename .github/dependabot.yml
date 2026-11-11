@@ -29,3 +29,4 @@ updates:
       ### 如需忽略特定 Action 或版本，可在此添加规则
       ### - dependency-name: "actions/checkout"
       ###   versions: ["v5.x"]
+
