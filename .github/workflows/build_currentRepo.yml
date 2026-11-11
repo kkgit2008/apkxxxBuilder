@@ -48,8 +48,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
 
-      ### 提前校验ANDROID_DIR目录存在，避免后续步骤在错误位置执行
       - name: Validate ANDROID_DIR
+      ### 提前校验ANDROID_DIR目录存在，避免后续步骤在错误位置执行
         run: |
           if [ ! -d "${{ env.ANDROID_DIR }}" ]; then
             echo "::error::ANDROID_DIR '${{ env.ANDROID_DIR }}' does not exist"
