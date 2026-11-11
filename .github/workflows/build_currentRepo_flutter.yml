@@ -1,8 +1,8 @@
-### TIME:250916
+### TIME:261111
+
+
 
 name: Build With Flutter
-
-### To build from subfolder,just modify the 'ANDROID_DIR'
 
 on:
   push:
@@ -15,22 +15,26 @@ on:
   ### Support manual build in 'Actions/workflow'
 
 env:
-  ANDROID_DIR: .
-  ### Build from project root (when 'app' folder is just at project root)
+  FLUTTER_VERSION: '3.32.8'
+  ### 只有当你想绕过 flutter build 直接调 gradle 时才需要
   # ANDROID_DIR: android
   ### Build from 'android' folder (when 'app' folder is in 'project/android' folder), modify it as you need.
 
 permissions:
-  contents: write
+  contents: read
+  actions: write
 
 jobs:
   build_apk:
     strategy:
+      fail-fast: false     ### debug 失败不连带跳过 release
       matrix:
         build_type: ['debug', 'release']
-        # build_type: ['release']
-    name: Build APK
+    ### 手动触发 → debug + release 都构建；push 到 main/master → 只构建 release
+    if: ${{ github.event_name == 'workflow_dispatch' || matrix.build_type == 'release' }}
+    name: Build ${{ matrix.build_type }} APK
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
 
       - name: Cancel Previous Runs
@@ -41,106 +45,62 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v7
 
-      - name: Set Up Flutter
-      ### 设置 Flutter 环境
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.32.8'
-          channel: 'stable'
-          cache: true
-
-### flutter-DART版本对应关系: https://blog.csdn.net/zhukui66/article/details/133300093
-
-
-
-#      ### 调试 - 彻底清理并初始化
-#      - name: Reset Project
-#        ### 确保在项目根目录执行
-#        working-directory: .
-#        run: |
-#          flutter clean
-#          rm -rf .dart_tool pubspec.lock
-#          echo ">>clean finished"
-
-      - name: Configure Flutter SDK
-      ### 自动生成 local.properties 并设置 flutter.sdk
-        working-directory: ${{ env.ANDROID_DIR }}
-        run: |
-          echo "flutter.sdk=$FLUTTER_ROOT" > local.properties
-          ### 将sdk路径写入文件
-          cat local.properties
-          ### 打印文件内容
-
+      ### JDK 要在 Flutter 之前
       - name: Set Up JDK
         uses: actions/setup-java@v6
         with:
-          java-version: '17'
           distribution: 'temurin'
+          java-version: '17'
 
+      - name: Set Up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      ### flutter-DART版本对应关系: https://blog.csdn.net/zhukui66/article/details/133300093
+
+      ### Gradle 缓存（key 里带上 pubspec.lock，避免依赖变动后缓存陈旧）
       - name: Cache Gradle
         uses: actions/cache@v6
         with:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', '**/build.gradle') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', '**/build.gradle*', '**/settings.gradle*', '**/pubspec.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
-      - name: Increase Gradle Memory
-        working-directory: ${{ env.ANDROID_DIR }}
-        run: |
-          printf "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g\n" >> gradle.properties
+      #- name: Enable Android
+      #  run: flutter config --enable-android
 
-      - name: Make Gradlew Executable
-        working-directory: ${{ env.ANDROID_DIR }}
-        run: |
-          if [ ! -f "gradlew" ]; then gradle wrapper; fi
-          chmod +x gradlew
+      - name: Install Dependencies
+        run: flutter pub get
+        ### 这里会读取pubspec.yaml文件
 
-      - name: Set Gradle Memory(support existing/missing config)
+      - name: Tune Gradle Memory
+        working-directory: android
         run: |
           if grep -q "^org.gradle.jvmargs=" gradle.properties; then
             ### 存在则替换原有配置
             sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g/' gradle.properties
           else
             ### 不存在则在文件末尾安全新增（加换行避免拼接）
-            echo -e "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
+            printf "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g\n" >> gradle.properties
           fi
-          ### 输出修改后的文件内容到日志
-          echo "=== Modified gradle.properties content ==="
-          cat gradle.properties
-
-      - name: Setup Flutter Plugins
-        run: |
-          ### 获取所有依赖项并生成'.dart_tool/package_config.json'文件
-          flutter pub get || exit 1
-          ### 添加Flutter官方提供的国际化语言支持库
-          flutter pub add flutter_localizations --sdk=flutter || exit 1
-          ### 升级所有依赖包到最新兼容版本
-          # flutter pub upgrade || exit 1
-
-      - name: Prepare Flutter
-        run: |
-          ### 详细检查Flutter开发环境状态
-          flutter doctor -v
-          ### 显式启用Android平台支持，防止出现未知问题
-          flutter config --enable-android
-          ### 预下载Android平台所需的二进制文件和工具链，减少后续构建时间
-          flutter precache --android
+          echo "=== gradle.properties ===" && cat gradle.properties
 
       - name: Build ${{ matrix.build_type }} APK
-        working-directory: ${{ env.ANDROID_DIR }}
-        run: |
-          build_type=${{ matrix.build_type }}
-          ./gradlew assemble${build_type^}
+        run: flutter build apk --${{ matrix.build_type }}
 
       - name: Show APK Path
-        run: |
-            echo ">>./build/app/outputs/flutter-apk:"
-            ls -la ./build/app/outputs/flutter-apk
+        run: ls -la build/app/outputs/flutter-apk/
 
       - name: Upload ${{ matrix.build_type }} APK
         uses: actions/upload-artifact@v7
         with:
           name: apk-${{ matrix.build_type }}
-          path: ./build/app/outputs/flutter-apk/*.apk
-
+          path: build/app/outputs/flutter-apk/*.apk
+          retention-days: 7
+          ### 设置保存天数，节省github存储配额，默认90 
