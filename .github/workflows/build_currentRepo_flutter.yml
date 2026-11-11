@@ -16,9 +16,9 @@ on:
 
 env:
   FLUTTER_VERSION: '3.32.8'
-  ### 只有当你想绕过 flutter build 直接调 gradle 时才需要
   # ANDROID_DIR: android
   ### Build from 'android' folder (when 'app' folder is in 'project/android' folder), modify it as you need.
+  ### 只有当你想绕过 flutter build 直接调 gradle 时才需要
 
 permissions:
   contents: read
