@@ -16,6 +16,7 @@ on:
 
 env:
   FLUTTER_VERSION: '3.32.8'
+
   # ANDROID_DIR: android
   ### Build from 'android' folder (when 'app' folder is in 'project/android' folder), modify it as you need.
   ### 只有当你想绕过 flutter build 直接调 gradle 时才需要
@@ -27,8 +28,10 @@ permissions:
 jobs:
   build_apk:
     strategy:
-      fail-fast: false     ### debug 失败不连带跳过 release
+      fail-fast: false
+      ### debug失败不连带跳过release
       matrix:
+        #abi_type: ['arm64-v8a', 'armeabi-v7a', 'x86_64']
         build_type: ['debug', 'release']
     ### 手动触发 → debug + release 都构建；push 到 main/master → 只构建 release
     if: ${{ github.event_name == 'workflow_dispatch' || matrix.build_type == 'release' }}
@@ -78,6 +81,9 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
         ### 这里会读取pubspec.yaml文件
+
+      - name: Analyze Code
+        run: flutter analyze
 
       - name: Tune Gradle Memory
         working-directory: android
