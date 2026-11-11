@@ -1,8 +1,9 @@
-### TIME:250915
+### TIME:261111
 
 
 
 name: Build APK From Other Repo
+### Need file 'project-to-build' in root folder.
 
 on:
   ### 只能手动开启构建
