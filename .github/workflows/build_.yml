@@ -9,17 +9,24 @@ name: Build Current Repo
 
 on:
   push:
-    ### Start build only on these branches
     branches: [ "main","master" ]
+    ### Start build only on these branches
     paths-ignore:
       - '**.md'
       - '.github/workflows/*.yml'
+
+  pull_request:
+  ### 在 PR 时触发，用于验证（如 Dependabot 的 PR）
+    branches: [ "main","master" ]
+    ### Start build only on these branches
+
   workflow_dispatch: { }
   ### Support manual build in 'Actions/workflow'
 
 env:
   ANDROID_DIR: .
   ### Build from project root (when 'app' folder is just at project root)
+
   # ANDROID_DIR: android
   ### Build from 'android' folder (when 'app' folder is in 'project/android' folder), modify it as you need.
 
@@ -30,14 +37,30 @@ permissions:
 jobs:
   build_apk:
     strategy:
-      fail-fast: false     
+      fail-fast: false
       ### debug失败不连带跳过release
       matrix:
         #abi_type: ['arm64-v8a', 'armeabi-v7a', 'x86_64']
         build_type: ['debug', 'release']
 
-    name: Build APK
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'push' && matrix.build_type == 'release') || 
+      (github.event_name == 'pull_request' && matrix.build_type == 'debug')
+    ### 核心逻辑更新：
+    ### 1. 手动触发：全跑
+    ### 2. Push 到主分支：只跑 Release
+    ### 3. PR：只跑 Debug（快速验证，省钱）
+
+    name: Build ${{ matrix.build_type }} APK
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    defaults:
+    ### 让这个 Job 下所有的 run 脚本，默认都在 ANDROID_DIR 执行
+      run:
+        working-directory: ${{ env.ANDROID_DIR }}
+
     steps:
 
       - name: Cancel Previous Runs
@@ -47,14 +70,6 @@ jobs:
 
       - name: Checkout Code
         uses: actions/checkout@v7
-
-      ### 提前校验ANDROID_DIR目录存在，避免后续步骤在错误位置执行
-      - name: Validate ANDROID_DIR
-        run: |
-          if [ ! -d "${{ env.ANDROID_DIR }}" ]; then
-            echo "::error::ANDROID_DIR '${{ env.ANDROID_DIR }}' does not exist"
-            exit 1
-          fi
 
       - name: Set Short SHA
         id: set_sha
@@ -72,39 +87,35 @@ jobs:
           path: |
             ~/.gradle/caches
             ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', '**/*.gradle', '**/*.gradle.kts', '**/gradle.properties', '**/libs.versions.toml') }}
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', '**/libs.versions.toml', '**/*.lockfile') }}
           restore-keys: |
             ${{ runner.os }}-gradle-
 
       - name: Configure Gradle Memory
-        working-directory: ${{ env.ANDROID_DIR }}
         run: |
           if grep -q "^org.gradle.jvmargs=" gradle.properties; then
-            ### 存在则替换原有配置
             sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g/' gradle.properties
+            ### 存在则替换原有配置
           else
-            ### 不存在则在文件末尾安全新增（加换行避免拼接）
             echo -e "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
+            ### 不存在则在文件末尾安全新增（加换行避免拼接）
           fi
-          ### 输出修改后的文件内容到日志
           echo "=== Modified gradle.properties content ==="
           cat gradle.properties
+          ### 输出修改后的文件内容到日志
 
       - name: Make Gradlew Executable
-        working-directory: ${{ env.ANDROID_DIR }}
         run: |
-          if [ ! -f "gradlew" ]; then gradle wrapper; fi
           chmod +x gradlew
 
       - name: Build ${{ matrix.build_type }} APK
-        working-directory: ${{ env.ANDROID_DIR }}
         run: |
           build_type=${{ matrix.build_type }}
           ./gradlew assemble${build_type^}
 
       - name: Show APK Path
         run: |
-          apk_dir="${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}"
+          apk_dir="./app/build/outputs/apk/${{ matrix.build_type }}"
           echo ">>${apk_dir}:"
           ls -la "${apk_dir}" || echo "(no APK outputs)"
 
@@ -113,4 +124,7 @@ jobs:
         with:
           name: apk-${{ matrix.build_type }}-${{ steps.set_sha.outputs.short_sha }}
           path: ${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk
-
+          retention-days: 7
+          ### 设置保存天数，节省github存储配额，默认90
+          if-no-files-found: error
+          ### 找不到APK文件直接报错

@@ -1,0 +1,144 @@
+
+### TIME:261111
+
+
+
+name: Build With NDK
+
+### To build from subfolder,just modify the 'ANDROID_DIR'
+
+on:
+  push:
+    branches: [ "main","master" ]
+    ### Start build only on these branches
+    paths-ignore:
+      - '**.md'
+      - '.github/workflows/*.yml'
+
+  pull_request:
+  ### 在 PR 时触发，用于验证（如 Dependabot 的 PR）
+    branches: [ "main","master" ]
+    ### Start build only on these branches
+
+  workflow_dispatch: { }
+  ### Support manual build in 'Actions/workflow'
+
+env:
+  NDK_VERSION: 29.0.13599879
+  CMAKE_VERSION: 3.30.5
+  
+  ANDROID_DIR: .
+  ### Build from project root (when 'app' folder is just at project root)
+
+  # ANDROID_DIR: android
+  ### Build from 'android' folder (when 'app' folder is in 'project/android' folder), modify it as you need.
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  build_apk:
+    strategy:
+      fail-fast: false
+      ### debug失败不连带跳过release
+      matrix:
+        #abi_type: ['arm64-v8a', 'armeabi-v7a', 'x86_64']
+        build_type: ['debug', 'release']
+
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'push' && matrix.build_type == 'release') || 
+      (github.event_name == 'pull_request' && matrix.build_type == 'debug')
+    ### 核心逻辑更新：
+    ### 1. 手动触发：全跑
+    ### 2. Push 到主分支：只跑 Release
+    ### 3. PR：只跑 Debug（快速验证，省钱）
+
+    name: Build ${{ matrix.build_type }} APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    ### NDK 原生 C++ 编译（尤其是冷启动）非常吃 CPU 和时间。如果有稍微复杂一点的 CMakeLists.txt，或者使用 Release 构建开启了混淆和优化（O3），需要很长时间。
+
+    defaults:
+    ### 让这个 Job 下所有的 run 脚本，默认都在 ANDROID_DIR 执行
+      run:
+        working-directory: ${{ env.ANDROID_DIR }}
+
+    steps:
+
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.13.1
+        with:
+          access_token: ${{ github.token }}
+
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: Set Short SHA
+        id: set_sha
+        run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      - name: Setup NDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'ndk;${{ env.NDK_VERSION }} cmake;${{ env.CMAKE_VERSION }}'
+
+      - name: Set Up JDK
+        uses: actions/setup-java@v6
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Gradle Dependenci
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ${{ env.ANDROID_DIR }}/app/.cxx  ### NDK构建缓存目录
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', '**/libs.versions.toml', '**/*.lockfile', '**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Configure Gradle Memory
+        run: |
+          if grep -q "^org.gradle.jvmargs=" gradle.properties; then
+            sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g/' gradle.properties
+            ### 存在则替换原有配置
+          else
+            echo -e "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
+            ### 不存在则在文件末尾安全新增（加换行避免拼接）
+          fi
+          echo "=== Modified gradle.properties content ==="
+          cat gradle.properties
+          ### 输出修改后的文件内容到日志
+
+      - name: Make Gradlew Executable
+        run: |
+          chmod +x gradlew
+
+      - name: Build ${{ matrix.build_type }} APK
+        run: |
+          build_type=${{ matrix.build_type }}
+          ./gradlew assemble${build_type^}
+
+      - name: Show APK Path
+        run: |
+          apk_dir="./app/build/outputs/apk/${{ matrix.build_type }}"
+          echo ">>${apk_dir}:"
+          ls -la "${apk_dir}" || echo "(no APK outputs)"
+
+#      - name: Copy ${{ matrix.build_type }} APK
+#        run: |
+#          cp ${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk ./
+
+      - name: Upload ${{ matrix.build_type }} APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: apk-${{ matrix.build_type }}-${{ steps.set_sha.outputs.short_sha }}
+          path: ${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk
+          retention-days: 7
+          ### 设置保存天数，节省github存储配额，默认90
+          if-no-files-found: error
+          ### 找不到APK文件直接报错

@@ -1,0 +1,202 @@
+
+### TIME:261111
+
+
+
+### 更简单的方案是在项目根目录添加 .gitmodules 文件(文件内容可参考AndroidIDE仓库):
+
+### [submodule "composite-builds/external/logback-android"]
+### 	path = composite-builds/external/logback-android
+### 	url = https://github.com/kkgit2008/logback-android
+
+
+
+
+
+name: Build With Submodule
+
+on:
+  push:
+    branches: [ "main","master" ]
+    ### Start build only on these branches
+    paths-ignore:
+      - '**.md'
+      - '.github/workflows/*.yml'
+
+  pull_request:
+  ### 在 PR 时触发，用于验证（如 Dependabot 的 PR）
+    branches: [ "main","master" ]
+    ### Start build only on these branches
+
+  workflow_dispatch: { }
+  ### Support manual build in 'Actions/workflow'
+
+env:
+  MAIN_NAME: 'kkgit2008/mainRepoA' 
+  DEPENDENCY_NAME: 'kkgit2008/subRepoB'
+
+  MAIN_REPO_BRANCH: 'mainBranch01'
+  ### 当前仓库分支
+  DEPENDENCY_REPO_BRANCH: 'subBranch02'
+  ### 外部仓库分支
+
+  MAIN_REPO_DIR: '.'
+  ### 复制当前仓库到这个临时目录
+  SUBMODULE_DIR: './subRepo'
+  ### 复制外部仓库到这个临时目录(可覆盖临时仓中的当前文件)
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  build_apk:
+    strategy:
+      fail-fast: false
+      ### debug失败不连带跳过release
+      matrix:
+        #abi_type: ['arm64-v8a', 'armeabi-v7a', 'x86_64']
+        build_type: ['debug', 'release']
+
+    if: |
+      github.event_name == 'workflow_dispatch' || 
+      (github.event_name == 'push' && matrix.build_type == 'release') || 
+      (github.event_name == 'pull_request' && matrix.build_type == 'debug')
+    ### 核心逻辑更新：
+    ### 1. 手动触发：全跑
+    ### 2. Push 到主分支：只跑 Release
+    ### 3. PR：只跑 Debug（快速验证，省钱）
+
+    name: Build ${{ matrix.build_type }} APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    
+    defaults:
+    ### 让这个 Job 下所有的 run 脚本，默认都在 MAIN_REPO_DIR 执行
+      run:
+        working-directory: ${{ env.MAIN_REPO_DIR }}
+
+    steps:
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@0.13.1
+        with:
+          access_token: ${{ github.token }}
+
+      ### 检出主仓库 (username/repo@branch)
+      - name: Checkout Main Repository
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ env.MAIN_NAME }}
+          ref: ${{ env.MAIN_REPO_BRANCH }}
+          path: ${{ env.MAIN_REPO_DIR }}
+#          submodules: true
+
+      ### 检出依赖仓库 (username/repo2@branch2)
+      - name: Checkout Sub Repository
+        uses: actions/checkout@v7
+        with:
+          repository: ${{ env.DEPENDENCY_NAME }}
+          ref: ${{ env.DEPENDENCY_REPO_BRANCH }}
+          path: ${{ env.SUBMODULE_DIR }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      ### 验证分支和目录结构
+      - name: Verify Branches & Structure
+        run: |
+          echo ">>验证主仓库分支..."
+          #cd ${{ env.MAIN_REPO_DIR }}
+          CURRENT_MAIN_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          if [ "$CURRENT_MAIN_BRANCH" != "$MAIN_REPO_BRANCH" ]; then
+            echo "::error::主仓库分支不匹配！预期: $MAIN_REPO_BRANCH，实际: $CURRENT_MAIN_BRANCH"
+            exit 1
+          fi
+          
+          echo ">>验证依赖仓库分支..."
+          cd ${{ env.SUBMODULE_DIR }}
+          CURRENT_DEP_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          if [ "$CURRENT_DEP_BRANCH" != "$DEPENDENCY_REPO_BRANCH" ]; then
+            echo "::error::依赖仓库分支不匹配！预期: $DEPENDENCY_REPO_BRANCH，实际: $CURRENT_DEP_BRANCH"
+            ### 使用 ::error:: 前缀来高亮错误
+            exit 1
+          fi
+          echo ">>目录结构验证通过"
+
+      - name: Set Short SHA
+        id: set_sha
+        run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
+      - name: Set Up JDK
+        uses: actions/setup-java@v6
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Gradle Dependencies
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/gradle-wrapper.properties', '**/libs.versions.toml', '**/*.lockfile') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Configure Gradle Memory
+        run: |
+          if grep -q "^org.gradle.jvmargs=" gradle.properties; then
+            sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g/' gradle.properties
+            ### 存在则替换原有配置
+          else
+            echo -e "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
+            ### 不存在则在文件末尾安全新增（加换行避免拼接）
+          fi
+          echo "=== Modified gradle.properties content ==="
+          cat gradle.properties
+          ### 输出修改后的文件内容到日志
+
+      - name: Make Gradlew Executable
+        run: |
+          chmod +x gradlew
+
+      ### 构建APK
+      - name: Build ${{ matrix.build_type }} APK
+        run: |
+          build_type=${{ matrix.build_type }}
+          ./gradlew assemble${build_type^}
+
+      ### 显示目录结构（更容易排查错误）
+      - name: Show Project Path
+        run: |
+            echo ">>project root:"
+            ls -la ./
+            echo ">>./app:"
+            ls -la ./app
+            echo ">>./app/build:"
+            ls -la ./app/build
+            echo ">>./app/build/outputs:"
+            ls -la ./app/build/outputs
+            echo ">>apk files in outputs folder:"
+            #cd ./app/build/outputs && find -name *.apk
+            ls -la "./app/build/outputs/apk/${{ matrix.build_type }}" || echo "(no APK outputs)"
+
+      ### 使用当前时间作为版本
+      - name: Set Release TAG_VERSION_NAME
+        id: get_version_info
+        run: |
+          ### 获取当前UTC时间，格式为YYMMDD.HH（年-月-日-时-分）
+          TAG_VERSION_NAME=$(date -u +"%y%m%d.%H%M")
+          echo ">>TAG_VERSION_NAME=${TAG_VERSION_NAME}" >> $GITHUB_ENV
+          echo ">>TAG_VERSION_NAME=${TAG_VERSION_NAME}" >> $GITHUB_OUTPUT
+          echo ">>当前版本: ${TAG_VERSION_NAME}"
+      
+      ### 上传APK
+      - name: Upload ${{ matrix.build_type }} APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: apk-${{ matrix.build_type }}-${{ env.TAG_VERSION_NAME }}-${{ steps.set_sha.outputs.short_sha }}
+          path: |
+            ${{ env.MAIN_REPO_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk
+          retention-days: 7
+          ### 设置保存天数，节省github存储配额，默认90
+          if-no-files-found: error
+          ### 找不到APK文件直接报错
