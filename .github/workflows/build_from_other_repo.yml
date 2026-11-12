@@ -1,5 +1,5 @@
 
-### TIME:261112
+### TIME:261112v3
 
 
 
@@ -7,10 +7,10 @@ name: Build APK From Other Repo
 ### Need file 'project-to-build' in root folder.
 
 on:
-  #pull_request:
   ### 在 PR 时触发，用于验证（如 Dependabot 的 PR）
-    #branches: [ "main","master" ]
+  #pull_request:
     ### Start build only on these branches
+    #branches: [ "main","master" ]
 
   workflow_dispatch: { }
   ### Support manual build in 'Actions/workflow'
@@ -20,7 +20,6 @@ env:
 
 permissions:
   contents: read
-  actions: write
 
 jobs:
   build_apk:
@@ -29,53 +28,104 @@ jobs:
       ### debug失败不连带跳过release
       matrix:
         #abi_type: ['arm64-v8a', 'armeabi-v7a', 'x86_64']
-        build_type: ['debug', 'release']
+        #build_type: ['debug', 'release']
+        build_type: ['debug']
+        ### 此处只构建debug变体，减少构建错误
 
     name: Build ${{ matrix.build_type }} APK
     runs-on: ubuntu-latest
-    timeout-minutes: 30
 
+    timeout-minutes: 30
+    ### 构建超时限制，大型项目可修改为45至60分钟
+
+    # 使用更优的原生action，取代 Cancel Previous Runs
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+  
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.13.1
-        with:
-          access_token: ${{ github.token }}
 
       - name: Checkout Code
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          ### 这里只是为了读取project-to-build，所以设置为1就足够
 
+      - id: get-project
+        name: Get Project Name
+        run: |          
+
+          # run块内的带有#的注释在构建日志里也能看到，所以尽量写在需注释的代码前面
+
+          ### 检查 project-to-build 文件是否存在
+          [ -f project-to-build ] || { echo "::error::project-to-build 不存在"; exit 1; }
+          
+          ### 读取内容并删除回车换行（兼容 Windows CRLF）
+          RAW=$(cat project-to-build | tr -d '\r\n')
+          
+          ### 校验内容非空
+          [ -n "$RAW" ] || { echo "::error::project-to-build 为空"; exit 1; }
+          
+          ### 把完整 仓库URL地址 规范化为 owner/repo
+          REPO=$(echo "$RAW" | sed -E 's#^https?://github\.com/##; s#\.git$##')
+          
+          ### 校验结果为 owner/repo 格式
+          echo "$REPO" | grep -qE '^[^/]+/[^/]+$' || { echo "::error::无法解析为 owner/repo：$RAW"; exit 1; }
+          
+          echo "raw=$RAW"  >> $GITHUB_OUTPUT
+          echo "repo=$REPO" >> $GITHUB_OUTPUT
+
+      ### checkout 目标仓库到 ANDROID_DIR，带 submodules
+      - name: Clone Target Project
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.get-project.outputs.repo }}
+          path: ${{ env.ANDROID_DIR }}
+          submodules: recursive
+
+          fetch-depth: 1
+          ### 默认 1（只拉最新 commit）
+          ### 若构建逻辑依赖 git 历史/tag，改为 0（完整）或 100（最近100个）
+
+      ### 取 projectA （也就是远程仓库）的 SHA，artifact的名字能反映真实构建的commit
       - name: Set Short SHA
         id: set_sha
-        run: echo "short_sha=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+        working-directory: ${{ env.ANDROID_DIR }}
+        run: echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: Set Up JDK
         uses: actions/setup-java@v6
         with:
           java-version: 17
+          ### 按目标项目的 compileOptions / kotlin jvmTarget 调整jdk版本
           distribution: 'temurin'
 
-      - id: get-project
-        name: Get Project Name
-        run: echo "PROJECT=$(cat project-to-build | tr -d '\r\n')" >> $GITHUB_OUTPUT
-        ### 清理可能存在的回车换行符
+      ### 使用gradle缓存，缩短构建时间
+      - name: Cache Gradle Dependencies
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties', '**/libs.versions.toml', '**/*.lockfile') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
 
-      - name: Clone Project
-        run: git clone --depth=1 ${{ steps.get-project.outputs.PROJECT }} ${{ env.ANDROID_DIR }}
-        ### 把远程仓库克隆到ANDROID_DIR目录下
-
+      ### 增加gradle构建内存，防止内存溢出
       - name: Configure Gradle Memory
         working-directory: ${{ env.ANDROID_DIR }}
         run: |
           if grep -q "^org.gradle.jvmargs=" gradle.properties; then
-            sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g/' gradle.properties
             ### 存在则替换原有配置
+            sed -i 's/^org.gradle.jvmargs=.*/org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g/' gradle.properties
           else
-            echo -e "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
             ### 不存在则在文件末尾安全新增（加换行避免拼接）
+            echo -e "\norg.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1g" >> gradle.properties
           fi
           echo "=== Modified gradle.properties content ==="
-          cat gradle.properties
+          
           ### 输出修改后的文件内容到日志
+          cat gradle.properties
 
       - name: Make Gradlew Executable
         working-directory: ${{ env.ANDROID_DIR }}
@@ -86,21 +136,47 @@ jobs:
         working-directory: ${{ env.ANDROID_DIR }}
         run: |
           build_type=${{ matrix.build_type }}
+          
+          # assemble默认全项目构建。以下情况建议改为模块级：
+          #   - 模块数多（>10），想缩短构建时间
+          #   - 有 testing/benchmark/sample 模块，不想被触发
+          #   - 只需要 app 产物
+          # 模块路径查找：./gradlew projects
+          ### ./gradlew :app:assembleDebug                    （标准单 app 项目，也可写成 ./gradlew assembleDebug）
+          ### ./gradlew :core:app:assembleDebug               （app 在 core/app 下）
+          ### ./gradlew :dir1:dir2:assembleDebug              （多层嵌套）
+
           ./gradlew assemble${build_type^}
 
-      - name: Show APK Path
-        working-directory: ${{ env.ANDROID_DIR }}
+      ### 动态查找apk文件路径，无需手动修改路径
+      - name: Locate APK
+        id: locate
         run: |
-          apk_dir="./app/build/outputs/apk/${{ matrix.build_type }}"
-          echo ">>${apk_dir}:"
-          ls -la "${apk_dir}" || echo "(no APK outputs)"
+          ### 在 workspace 根目录执行，直接用 ANDROID_DIR 定位
+          
+          ### 若项目有多个 APK 输出模块，head -n1 可能选错
+          ### 可改为精确路径，如 apk_dir="./app/build/outputs/apk/${{ matrix.build_type }}"
+          
+          apk_dir=$(find "${{ env.ANDROID_DIR }}" -type d -path "*/build/outputs/apk/${{ matrix.build_type }}" | head -n1)
+          [ -n "$apk_dir" ] || { echo "::error::未找到 APK 输出目录"; exit 1; }
+      
+          ### 去掉前导 ./，得到干净相对路径
+          apk_dir="${apk_dir#./}"
+
+          ### 验证目录里确实有 .apk
+          ls "$apk_dir"/*.apk >/dev/null 2>&1 || { echo "::error::目录 $apk_dir 中没有 APK 文件"; exit 1; }
+          
+          echo "apk_dir=$apk_dir" >> $GITHUB_OUTPUT
+          ls -la "$apk_dir"
 
       - name: Upload ${{ matrix.build_type }} APK
         uses: actions/upload-artifact@v7
         with:
           name: apk-${{ matrix.build_type }}-${{ steps.set_sha.outputs.short_sha }}
-          path: ${{ env.ANDROID_DIR }}/app/build/outputs/apk/${{ matrix.build_type }}/*.apk
-          retention-days: 7
+          path: ${{ steps.locate.outputs.apk_dir }}/*.apk
+          
           ### 设置保存天数，节省github存储配额，默认90
-          if-no-files-found: error
+          retention-days: 7
+
           ### 找不到APK文件直接报错
+          if-no-files-found: error
