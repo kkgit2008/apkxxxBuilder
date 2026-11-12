@@ -9,13 +9,13 @@
 
 # 🔥🔥新增以下功能:
 
-* 1.通用型yml文件，支持在当前仓库构建apk，也可选择在仓库的子目录中构建 <a href=".github/workflows/build_currentRepo.yml">file</a>
+* 1.通用型yml文件，支持在当前仓库构建apk，也可选择在仓库的子目录中构建 <a href=".github/workflows/build_.yml">file</a>
 
 * 2.一键发布release <a href=".github/workflows/release.yml">file</a>
 
 * 3.教程: 可任意自行签名apk文件 <a href="HowToSignMyApk/">file</a>
 
-* 4.可将其他仓库作为子模块 <a href=".github/workflows/build_WithSubmodule.yml">file</a>
+* 4.可将其他仓库作为子模块 <a href=".github/workflows/build_submodule.yml">file</a>
 
 * 5.可通过工作流删除任意分支 <a href=".github/workflows/delete_branch.yml">file</a>
 
